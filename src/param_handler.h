@@ -243,7 +243,7 @@ void usage( ) {
          << "                   Phred 33 ('!') and Phred 64 ('@') are the most widely used scoring system\n"
          << "                   Quality scores start from 35 ('#') in the FASTQ files is also common\n\n"
 
-         << "  -s size          Minimum read size to be kept for alignment (default: 36)\n\n"
+         << "  -s size          Minimum read size to be kept after trimming (default: 36)\n\n"
 
          << "  -k kit           Specify the sequencing kit to use built-in adapters\n"
          << "                   Currently supports 'Illumina' (default), 'Nextera', 'Transposase' and 'BGI'\n"

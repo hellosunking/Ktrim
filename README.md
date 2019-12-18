@@ -69,7 +69,7 @@ Optional parameters:
                    Phred 33 ('!') and Phred 64 ('@') are the most widely used scoring system
                    while quality scores start from 35 ('#') in the FASTQ files is also common
 
-  -s size          Minimum read size to be kept for alignment (default: 36)
+  -s size          Minimum read size to be kept after trimming (default: 36)
 
   -k kit           Specify the sequencing kit to use built-in adapters
                    Currently supports 'Illumina' (default), 'Nextera', 'Transposase' and 'BGI'
