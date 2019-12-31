@@ -147,9 +147,9 @@ The following are the key information and codes that you can use to reproduce th
 ## Linux kernal version: 5.0.0-37-generic
 ##
 ## Software versions:
-## Trimmomatic: version 0.39; Java: openjdk version 11.0.4
-## Trim Galore: version 0.6.5; cutadpat version 2.7; Perl version v5.26.1; Python version 3.6.9
-## Ktrim: version 1.0.0; compiled using G++ version 7.4.0
+## Trimmomatic: 0.39 (Java openjdk_11.0.4)
+## Trim Galore: 0.6.5 (cutadpat 2.7; Perl v5.26.1; Python 3.6.9)
+## Ktrim: 1.0.0 (compiled using G++ 7.4.0)
 
 ## Note that 1 and 4 threads are both used for performance comparisons
 THREAD=1
