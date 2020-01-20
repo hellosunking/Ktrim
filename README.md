@@ -92,7 +92,7 @@ by setting '-a' (for read 1) and '-b' (for read 2; if it is the same as read 1, 
 options. You may need to refer to the manual of your library preparation kit for the adapter sequences.
 Note that in the current version of `Ktrim`, only 1 pair of adapters is allowed.
 
-Here are the built-in adapter sequences:
+Here are the built-in adapter sequences (the copyright should belong to the corresponding companies):
 
 ```
 Illumina TruSeq kits:
