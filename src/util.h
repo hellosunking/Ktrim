@@ -1,18 +1,17 @@
 /**
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date: Dec, 2019
+ * Date: Feb, 2020
  * This program is part of the Ktrim package
 **/
 
 #include <fstream>
-#include <string>
 #include <sstream>
 #include <algorithm>
-#include <vector>
 #include <thread>
 #include <stdlib.h>
 #include <memory.h>
 #include <omp.h>
+#include <math.h>
 #include "common.h"
 using namespace std;
 
@@ -72,7 +71,26 @@ unsigned int load_batch_data_PE( ifstream &fq1, ifstream &fq2, CppPERead *loadin
 
 		++ s;
 	}
-	return p-loadingReads;
+
+	// update in v1.1.0
+	// deal with size matter: if read 1 and read 2 sequences are of different size, keep the shorter one
+	s = loadingReads;
+	while( s != p ) {
+		register unsigned int size1 = s->seq1.size();
+		register unsigned int size2 = s->seq2.size();
+		if( size1 != size2 ) {
+			if( size1 > size2 ) {
+				s->seq1.resize(  size2 );
+				s->qual1.resize( size2 );
+			} else {
+				s->seq2.resize(  size1 );
+				s->qual2.resize( size1 );
+			}
+		}
+		++ s;
+	}
+
+	return p - loadingReads;
 }
 
 /*
@@ -86,16 +104,23 @@ bool check_mismatch_dynamic_SE( const string & s, unsigned int pos, const ktrim_
 	if( len > kp.adapter_len )
 		len = kp.adapter_len;
 
-	register unsigned int max_mismatch_dynamic = len >> 3;
-	if( (max_mismatch_dynamic<<3) != len )
-		++ max_mismatch_dynamic;
+	register unsigned int max_mismatch_dynamic;
+	// update in v1.1.0: allows the users to set the proportion of mismatches
+	if( kp.use_default_mismatch ) {
+		max_mismatch_dynamic = len >> 3;
+		if( (max_mismatch_dynamic<<3) != len )
+			++ max_mismatch_dynamic;
+	} else {
+		max_mismatch_dynamic = ceil( len * kp.mismatch_rate );
+	}
 
 	const char * p = s.c_str();
 	for( i=0; i!=len; ++i ) {
 		if( p[pos+i] != kp.adapter_r1[i] ) {
-			++ mis;
-			if( mis > max_mismatch_dynamic )
+			if( mis == max_mismatch_dynamic )
 			  return false;
+
+			++ mis;
 		}
 	}
 
@@ -113,32 +138,36 @@ bool check_mismatch_dynamic_PE( const string & s1, string & s2, unsigned int pos
 	if( len > kp.adapter_len )
 		len = kp.adapter_len;
 
-	register unsigned int max_mismatch_dynamic = len >> 2;
-	// here use 1/8 of the total length, use roof(len/4)
-	if( (max_mismatch_dynamic<<2) != len )
-		++ max_mismatch_dynamic;
+	register unsigned int max_mismatch_dynamic;
+	// update in v1.1.0: allows the users to set the proportion of mismatches
+	if( kp.use_default_mismatch ) {
+		// each read allows 1/8 mismatches of the total comparable length
+		max_mismatch_dynamic = len >> 3;
+		if( (max_mismatch_dynamic<<3) != len )
+			++ max_mismatch_dynamic;
+	} else {
+		max_mismatch_dynamic = ceil( len * kp.mismatch_rate );
+	}
 
 	// check mismatch for each read
 	register const char * p = s1.c_str();
 	for( i=0; i!=len; ++i ) {
 		if( p[pos+i] != kp.adapter_r1[i] ) {
-			++ mis1;
-			if( mis1 > max_mismatch_dynamic )
+			if( mis1 == max_mismatch_dynamic )
 				return false;
+
+			++ mis1;
 		}
 	}
 	p = s2.c_str();
 	for( i=0; i!=len; ++i ) {
 		if( p[pos+i] != kp.adapter_r2[i] ) {
-			++ mis2;
-			if( mis2 > max_mismatch_dynamic )
+			if( mis2 == max_mismatch_dynamic )
 				return false;
+
+			++ mis2;
 		}
 	}
-	// check total mismatch
-	//max_mismatch_dynamic = (len+1) >> 1;
-	if( mis1 + mis2 > max_mismatch_dynamic )
-		return false;
 
 	return true;
 }

@@ -8,7 +8,7 @@ use strict;
 use warnings;
 
 if( $#ARGV < 0 ) {
-	print STDERR "\nUsage: $0 <output.prefix>  [num=1e7] [min.size=10] [max.size=200] [read.cycle=100]\n\n";
+	print STDERR "\nUsage: $0 <output.prefix> [num=1e7] [min.size=10] [max.size=200] [read.cycle=100] [error.rate=0.01]\n\n";
 	exit 2;
 }
 
@@ -16,15 +16,15 @@ if( $#ARGV < 0 ) {
 srand( 7 );
 
 our @nuc = ( 'A', 'C', 'G', 'T' );
-our $mutRate = 0.01;
 ## for testing purpose, using the adapters from the Nextera kits
 our $adapter_1 = "CTGTCTCTTATACACATCT";
 our $adapter_2 = "AGATGTGTATAAGAGACAG";
 
-my $num   = $ARGV[1] || 1e7;
-my $min   = $ARGV[2] || 10;
-my $max   = $ARGV[3] || 200;
-my $cycle = $ARGV[4] || 100;
+my $num   = $ARGV[1] || 1e7;	## number of fragments
+my $min   = $ARGV[2] || 10;		## minimum fragment size
+my $max   = $ARGV[3] || 200;	## maximum fragment size
+my $cycle = $ARGV[4] || 100;	## read cycle
+my $eRate = $ARGV[5] || 0.01;	## sequencing error rate
 
 ## quality is NOT considered for compaison purpose
 my $qual  = 'h' x $cycle;
@@ -38,8 +38,8 @@ foreach my $i ( 1..$num ) {
 	my $read1 = join('', map{ $nuc[int rand @nuc] } (1..$size));
 	my $read2 = reverse $read1;
 	$read2 =~ tr/ACGT/TGCA/;
-	my $m1 = mut($adapter_1);
-	my $m2 = mut($adapter_2);
+	my $m1 = mut($adapter_1, $eRate);
+	my $m2 = mut($adapter_2, $eRate);
 	#print STDERR "$read1+$m1\n$read2+$m2\n";
 	$read1 .= $m1;
 	$read2 .= $m2;
@@ -59,12 +59,14 @@ close FQ2;
 
 sub mut {
 	my $raw = shift;
+	my $eRate = shift;
+
 	my $len = length($raw);
 
 	my $mut = '';
 	for(my $s=0; $s<$len; ++$s) {
 		my $r = substr( $raw, $s, 1 );
-		if( rand() < $mutRate ) {	## add a mutation
+		if( rand() < $eRate ) {	## add a mutation
 			while( 1 ) {
 				my $m = $nuc[ int rand @nuc ];
 				if( $m ne $r ) {
@@ -79,5 +81,4 @@ sub mut {
 
 	return $mut;
 }
-
 

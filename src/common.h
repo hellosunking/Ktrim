@@ -4,12 +4,13 @@
  * This header file records the constants used in Ktrim
  *
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date  : Dec, 2019
+ * Date:   Feb, 2020
+ * This program is part of the Ktrim package
  *
- * */
+ **/
 
 /*
- *  sequence model:
+ *  Sequencing model:
  *
  *                *read1 -->
  *  5' adapter - sequence sequence sequence - 3' adapter
@@ -18,13 +19,15 @@
  *  so read1 may contains 3' adapter, name it adapter_r1,
  *  read2 may contains reversed and ACGT-paired 5' adapter, name it adapter_r2
  *
- * */
+ **/
 
 #ifndef _KTRIM_COMMON_
 #define _KTRIM_COMMON_
+#include <string>
+#include <vector>
 using namespace std;
 
-const char * VERSION = "1.0.0 (Dec 2019)";
+const char * VERSION = "1.1.0 (Feb 2020)";
 // structure of a READ
 const unsigned int MAX_READ_ID    = 128;
 const unsigned int MAX_READ_CYCLE = 512;
@@ -34,7 +37,7 @@ typedef struct {
 	char seq[  MAX_READ_CYCLE ];
 	char qual[ MAX_READ_CYCLE ];
 	unsigned int size;
-}READ;
+} READ;
 
 typedef struct {
 	string id;
@@ -42,26 +45,26 @@ typedef struct {
 	string qual1;
 	string seq2;
 	string qual2;
-}CppPERead;
+} CppPERead;
 
 typedef struct {
 	string id;
 	string seq;
 	string qual;
-}CppSERead;
+} CppSERead;
 
 typedef struct {
 	unsigned int *dropped;
 	unsigned int *real_adapter;
 	unsigned int *tail_adapter;
-}ktrim_stat;
+} ktrim_stat;
 
 typedef struct {
 	char ** buffer1;
 	char ** buffer2;
 	unsigned int *b1stored;
 	unsigned int *b2stored;
-}writeBuffer;
+} writeBuffer;
 
 // built-in adapters
 const unsigned int MIN_ADAPTER_SIZE = 8;
@@ -134,24 +137,27 @@ typedef struct {
 	const char *adapter_r1, *adapter_r2;
 	unsigned int adapter_len;
 	const char *adapter_index1, *adapter_index2, *adapter_index3;
-}ktrim_param;
 
-const char * param_list = "1:2:U:o:t:k:s:p:q:a:b:hv";
+	bool use_default_mismatch;
+	float mismatch_rate;
+} ktrim_param;
+
+const char * param_list = "1:2:U:o:t:k:s:p:q:a:b:m:hv";
 
 // definition of functions
 void usage();
 void init_param( ktrim_param &kp );
-int process_cmd_param( int argc, char * argv[], ktrim_param &kp );
+int  process_cmd_param( int argc, char * argv[], ktrim_param &kp );
 void print_param( const ktrim_param &kp );
 void extractFileNames( const char *str, vector<string> & Rs );
 
 unsigned int load_batch_data_PE( ifstream & fq1, ifstream &fq2, CppPERead *loadingReads, unsigned int num );
-bool check_mismatch_dynamic_PE( const std::string & s1, std::string & s2, unsigned int pos, const ktrim_param &kp );
+bool check_mismatch_dynamic_PE( const string & s1, string & s2, unsigned int pos, const ktrim_param &kp );
 int process_single_thread_PE( const ktrim_param &kp );
 int process_multi_thread_PE(  const ktrim_param &kp );
 
 unsigned int load_batch_data_SE( ifstream & fq1, CppSERead *loadingReads, unsigned int num );
-bool check_mismatch_dynamic_SE( const std::string & s1, unsigned int pos, const ktrim_param &kp );
+bool check_mismatch_dynamic_SE( const string & s1, unsigned int pos, const ktrim_param &kp );
 int process_single_thread_SE( const ktrim_param &kp );
 int process_multi_thread_SE(  const ktrim_param &kp );
 

@@ -1,14 +1,12 @@
 /**
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date: Dec, 2019
+ * Date: Feb, 2020
  * This program is part of the Ktrim package
 **/
 
 #include <fstream>
-#include <string>
 #include <sstream>
 #include <algorithm>
-#include <vector>
 #include <thread>
 #include <stdlib.h>
 #include <memory.h>
@@ -57,7 +55,7 @@ void workingThread_PE( unsigned int tn, unsigned int start, unsigned int end, Cp
 
 		sort( seed.begin(), seed.end() );
 
-		last_seed = impossible_seed;	// a position which cannot be in seed
+		last_seed = impossible_seed;	// a position which cannot be a seed
 		for( it=seed.begin(); it!=seed.end(); ++it ) {
 			if( *it != last_seed ) {
 			// as there maybe the same value in seq1_seed and seq2_seed,
@@ -220,7 +218,7 @@ int process_multi_thread_PE( const ktrim_param &kp ) {
 						threadLoaded = load_batch_data_PE( fq1, fq2, loadingReads, READS_PER_BATCH );
 						metEOF = fq1.eof();
 						nextBatch = (threadLoaded!=0);
-						//cerr << "Loading thread: " << threadLoaded << ", " << metEOF << ", " << nextBatch << '\n';
+				//cerr << "Loading thread: " << threadLoaded << ", " << metEOF << ", " << nextBatch << '\n';
 					} else {
 						unsigned int start = loaded * tn / threadCNT;
 						unsigned int end   = loaded * (tn+1) / threadCNT;
@@ -229,7 +227,7 @@ int process_multi_thread_PE( const ktrim_param &kp ) {
 				}
 			} // parallel body
 			// swap workingReads and loadingReads for next loop
-			swapReads	= loadingReads;
+			swapReads	 = loadingReads;
 			loadingReads = workingReads;
 			workingReads = swapReads;
 			// write output and update fastq statistics
@@ -265,7 +263,7 @@ int process_multi_thread_PE( const ktrim_param &kp ) {
 		real_all += kstat.real_adapter[i];
 		tail_all += kstat.tail_adapter[i];
 	}
-	fout << "Total: "	<< line		<< '\n'
+	fout << "Total: "    << line		<< '\n'
 		 << "Dropped : " << dropped_all << '\n'
 		 << "Aadaptor: " << real_all	<< '\n'
 		 << "Tail Hit: " << tail_all	<< '\n';
@@ -293,18 +291,18 @@ int process_single_thread_PE( const ktrim_param &kp ) {
 
 	CppPERead *read = new CppPERead[ READS_PER_BATCH_ST ];
 
-    ktrim_stat kstat;
-    kstat.dropped	   = new unsigned int [ 1 ];
+	ktrim_stat kstat;
+	kstat.dropped	   = new unsigned int [ 1 ];
 	kstat.real_adapter = new unsigned int [ 1 ];
 	kstat.tail_adapter = new unsigned int [ 1 ];
-    kstat.dropped[0] = 0;
-    kstat.real_adapter[0] = 0;
-    kstat.tail_adapter[0] = 0;
+	kstat.dropped[0] = 0;
+	kstat.real_adapter[0] = 0;
+	kstat.tail_adapter[0] = 0;
 
 	// buffer for storing the modified reads per thread
-    writeBuffer writebuffer;
+	writeBuffer writebuffer;
 	writebuffer.buffer1  = new char * [ 1 ];
-    writebuffer.buffer2  = new char * [ 1 ];
+	writebuffer.buffer2  = new char * [ 1 ];
 	writebuffer.b1stored = new unsigned int	[ 1 ];
 	writebuffer.b2stored = new unsigned int	[ 1 ];
 	writebuffer.buffer1[0] = new char[ BUFFER_SIZE_PER_BATCH_READ_ST ];
@@ -396,3 +394,4 @@ int process_single_thread_PE( const ktrim_param &kp ) {
 
 	return 0;
 }
+

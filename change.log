@@ -1,0 +1,8 @@
+
+Ktrim change log
+
+v1.1.0 Feb 2020
+	* Supports users to set the allowed mismatches during adapter-sequence comparison (-m option)
+	* Fixes a bug when read1 and read2 sequences are not of the same length
+	* Optimizes the mismatch calculation during adapter-sequence comparison for paired-end data
+
