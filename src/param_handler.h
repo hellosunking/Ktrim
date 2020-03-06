@@ -76,7 +76,7 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 			case 'v': cout << VERSION << '\n'; return 100;
 
 			default:
-				cerr << "\033[1;31mError: argument invalid ('" << ch << "')!\033[0m\n";
+				//cerr << "\033[1;31mError: argument invalid ('" << (char)optopt << "')!\033[0m\n";
 				usage();
 				return 2;
 		}

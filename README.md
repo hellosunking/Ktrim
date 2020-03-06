@@ -1,4 +1,6 @@
 
+![Ktrim Logo](http://hellosunking.github.io/logos/Ktrim.png)
+
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
 Version 1.1.0, Feb 2020<br />
 Author: Kun Sun \(sunkun@szbl.ac.cn\)<br />
@@ -91,11 +93,11 @@ Ktrim: extra-fast and accurate adapter- and quality-trimmer.
 
 `Ktrim` contains built-in adapter sequences used by Illumina TruSeq kits, Nextera kits, Nextera transposase
 adapters and BGI sequencing kits within the package. However, customized adapter sequences are also allowed
-by setting '-a' (for read 1) and '-b' (for read 2; if it is the same as read 1, you can left it blank)
+by setting '-a' (for read 1) and '-b' (for read 2; if it is the same as read 1, you can leave it blank)
 options. You may need to refer to the manual of your library preparation kit for the adapter sequences.
 Note that in the current version of `Ktrim`, only 1 pair of adapters is allowed.
 
-Here are the built-in adapter sequences (the copyright should belong to the corresponding companies):
+The following is the built-in adapter sequences (the copyright should belong to the corresponding companies):
 
 ```
 Illumina TruSeq kits:
@@ -141,6 +143,10 @@ Please refer to the Supplementary Method for reproducing the results in the pape
 ## Outputs explanation
 `Ktrim` outputs the trimmed reads in FASTQ format and key statistics (e.g., the numbers of reads that
 contains adapters and the number of reads in the trimmed files).
+
+## Citation
+When referencing, please cite "Sun K (2020) **Ktrim: an extra-fast and accurate adapter- and quality-trimmer
+for sequencing data.** *Bioinformatics in press*".
 
 ---
 Please send bug reports to Kun Sun \(sunkun@szbl.ac.cn\).<br />
