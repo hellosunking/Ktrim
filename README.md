@@ -1,5 +1,5 @@
 
-![Ktrim Logo](http://hellosunking.github.io/logos/Ktrim.png)
+![Ktrim Logo](https://hellosunking.github.io/logos/Ktrim.png)
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
 Version 1.1.0, Feb 2020<br />
