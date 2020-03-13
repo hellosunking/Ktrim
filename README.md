@@ -143,8 +143,11 @@ Please refer to the Supplementary Method for reproducing the results in the pape
 contains adapters and the number of reads in the trimmed files).
 
 ## Citation
-When referencing, please cite "Sun K (2020) **Ktrim: an extra-fast and accurate adapter- and quality-trimmer
-for sequencing data.** *Bioinformatics in press*".
+When referencing, please cite "Sun K: **Ktrim: an extra-fast and accurate adapter- and quality-trimmer
+for sequencing data.** *Bioinformatics* 2020 Mar 11. doi: 10.1093/bioinformatics/btaa171"
+[PubMed](https://www.ncbi.nlm.nih.gov/pubmed/32159761 "PubMed link")
+[Full Text](https://doi.org/10.1093/bioinformatics/btaa171 "Full text on Bioinformatics journal")
+
 
 ---
 Please send bug reports to Kun Sun \(sunkun@szbl.ac.cn\).<br />
