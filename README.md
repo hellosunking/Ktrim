@@ -101,12 +101,8 @@ The following is the built-in adapter sequences (the copyright should belong to 
 Illumina TruSeq kits:
 AGATCGGAAGAGC (for both read 1 and read 2)
 
-Nextera kits:
+Nextera kits (suitable for ATAC-seq data):
 CTGTCTCTTATACACATCT (for both read 1 and read 2)
-
-Nextera transposase adapters:
-Read 1: TCGTCGGCAGCGTC
-Read 2: GTCTCGTGGGCTCG
 
 BGI adapters:
 Read 1: AAGTCGGAGGCCAAGCGGTC
