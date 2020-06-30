@@ -1,6 +1,6 @@
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
-Version 1.2.0, Jun 2020<br />
+Version 1.2.0, Jun 2020 -- "Dragonboat"<br />
 Author: Kun Sun \(sunkun@szbl.ac.cn\)<br />
 <br />
 Distributed under the
@@ -10,13 +10,12 @@ For detailed information please refer to the license files under `license` direc
 
 ---
 
-## Release of version 1.2.0
+## Release of version 1.2.0 ("Dragonboat")
 The author is pleased to release version 1.2.0 of Ktrim. The major improvements in this version are:
 1. Support `Gzip` compressed file as input (requires `zlib`; ~30% slower than plain text)
 2. Support quality trimming using a window, while not just 1 base
 3. Optimize tail-hits for paired-end data. Over-trim rate shows a 10-fold decrease (from 3.8% to 0.37%)
-4. ~20% performance improvement in most scenarios, while ~10% defict for paired-end muli-thread mode.
-
+4. ~20% performance improvement in most scenarios, while ~10% defict for paired-end multi-thread mode.
 
 ## Installation
 `Ktrim` is written in `C++` for GNU Linux/Unix platforms. After uncompressing the source package, you
@@ -106,7 +105,7 @@ Ktrim: extra-fast and accurate adapter- and quality-trimmer.
 
 Please note that from version 1.2.0, Ktrim supports Gzip-compressed files as input. If you have multiple
 lanes of FASTQ files, Ktrim even supports that some lanes are compressed while others are plain text, as
-long as READ1 and READ2 are the same (either both compressed or plain text) for each lane.
+long as READ1 and READ2 are the same (either both compressed or plain text) for each lane of paired-end data.
 
 `Ktrim` contains built-in adapter sequences used by Illumina TruSeq kits, Nextera kits, Nextera transposase
 adapters and BGI sequencing kits within the package. However, customized adapter sequences are also allowed
