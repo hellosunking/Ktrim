@@ -34,14 +34,14 @@ int main( int argc, char *argv[] ) {
 
 	if( kp.FASTQ2 == NULL ) {  // single-end data
 		if( kp.thread == 1 )
-			retValue = process_single_thread_SE( kp );
+			retValue = process_single_thread_SE_C( kp );
 		else
-			retValue = process_multi_thread_SE( kp );
+			retValue = process_multi_thread_SE_C( kp );
 	} else {
 		if( kp.thread == 1 )
-			retValue = process_single_thread_PE( kp );
+			retValue = process_single_thread_PE_C( kp );
 		else
-			retValue = process_multi_thread_PE( kp );
+			retValue = process_multi_thread_PE_C( kp );
 	}
 
 	return retValue;

@@ -1,8 +1,14 @@
-
 Ktrim change log
 
-v1.1.0 Feb 2020
-	* Supports users to set the allowed mismatches during adapter-sequence comparison (-m option)
-	* Fixes a bug when read1 and read2 sequences are not of the same length
-	* Optimizes the mismatch calculation during adapter-sequence comparison for paired-end data
+v1.2.0 Jun 2020
+	* Support Gzip-compressed files as input
+	* Support '-w' option to check quality scores within a window rather than 1 bp
 
+v1.1.1 Mar 2020
+	* Optimize cout and cerr output streams
+	* Suppress the progress report
+
+v1.1.0 Feb 2020
+	* Support users to set the allowed mismatches during adapter-sequence comparison (-m option)
+	* Fix a bug when read1 and read2 sequences are not of the same length
+	* Optimize the mismatch calculation during adapter-sequence comparison for paired-end data

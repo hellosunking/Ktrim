@@ -36,6 +36,7 @@ void init_param( ktrim_param &kp ) {
 	kp.phred   = 33;
 	kp.minqual = 20;
 	kp.quality = 53;
+	kp.window  = 5;
 
 	kp.seqKit = NULL;	
 	kp.seqA = NULL;
@@ -68,6 +69,7 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 			case 's': kp.min_length = atoi(optarg); break;
 			case 'p': kp.phred = atoi(optarg); break;
 			case 'q': kp.minqual = atoi(optarg); break;
+			case 'w': kp.window  = atoi(optarg); break;
 			case 'a': kp.seqA = optarg; break;
 			case 'b': kp.seqB = optarg; break;
 			case 'm': kp.use_default_mismatch = false; kp.mismatch_rate = atof(optarg); break;
@@ -76,7 +78,7 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 			case 'v': cout << VERSION << '\n'; return 100;
 
 			default:
-				//cerr << "\033[1;31mError: argument invalid ('" << (char)optopt << "')!\033[0m\n";
+				//cerr << "\033[1;31mError: invalid argument ('" << (char)optopt << "')!\033[0m\n";
 				usage();
 				return 2;
 		}
@@ -111,13 +113,16 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 		cerr << "Warning: thread is set to 0! I will use all threads instead.\n";
 		kp.thread = omp_get_max_threads();
 	}
-	if( kp.min_length == 0 ) {
-		cerr << "\033[1;31mError: invalid min_length! Must be a positive number!\033[0m\n";
+	if( kp.thread > 4 ) {
+		cerr << "Warning: we discourage the usage of more than 4-threads.\n";
+	}
+	if( kp.min_length < 10 ) {
+		cerr << "\033[1;31mError: invalid min_length! Must be a positive number larger than 10!\033[0m\n";
 		usage();
 		return 11;
 	}
-	if( kp.phred==0 || kp.minqual==0 ) {
-		cerr << "\033[1;31mError: invalid phred and/or quality score! Must be positive numbers!\033[0m\n";
+	if( kp.phred==0 || kp.minqual==0 || kp.window==0 ) {
+		cerr << "\033[1;31mError: invalid phred/quality/window parameter! Must be positive numbers!\033[0m\n";
 		usage();
 		return 12;
 	}
@@ -226,7 +231,8 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o ou
 	 << "                  If your data is Paired-end, use '-1' and specify read 2 files using '-2' option\n"
 	 << "                  Note that if '-U' is used, specification of '-2' is invalid\n"
 	 << "                  If you have multiple files for your sample, use '"
-							<< FILE_SEPARATOR << "' to separate them\n\n"
+							<< FILE_SEPARATOR << "' to separate them\n"
+     << "                  Gzipped files are supported from version 1.2.0\n\n"
 
 	 << "  -o out.prefix   Specify the prefix of the output files\n"
 	 << "                  Note that output files include trimmed reads in FASTQ format and statistics\n\n"
@@ -245,11 +251,13 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o ou
 	 << "  -p phred-base   Specify the baseline of the phred score (default: 33)\n"
 	 << "  -q score        The minimum quality score to keep the cycle (default: 20)\n"
 	 << "                  Note that 20 means 1% error rate, 30 means 0.1% error rate in Phred\n\n"
+	 << "  -w window       Set the window size for quality check (default: 5)\n"
+	 << "                  Ktrim will stop when all the bases in a consecutive window pass the quality threshold\n\n"
 
 	 << "                  Phred 33 ('!') and Phred 64 ('@') are the most widely used scoring system\n"
 	 << "                  Quality scores start from 35 ('#') in the FASTQ files is also common\n\n"
 
-	 << "  -s size         Minimum read size to be kept after trimming (default: 36)\n\n"
+	 << "  -s size         Minimum read size to be kept after trimming (default: 36; must be larger than 10)\n\n"
 
 	 << "  -k kit          Specify the sequencing kit to use built-in adapters\n"
 	 << "                  Currently supports 'Illumina' (default), 'Nextera', 'Transposase' and 'BGI'\n"

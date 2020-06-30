@@ -4,7 +4,7 @@
  * This header file records the constants used in Ktrim
  *
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date:   Feb, 2020
+ * Date:   Mar, 2020
  * This program is part of the Ktrim package
  *
  **/
@@ -23,11 +23,12 @@
 
 #ifndef _KTRIM_COMMON_
 #define _KTRIM_COMMON_
+
 #include <string>
 #include <vector>
 using namespace std;
 
-const char * VERSION = "1.1.0 (Feb 2020)";
+const char * VERSION = "1.2.0 (Jun 2020) -- \"Dragonboat\"";
 // structure of a READ
 const unsigned int MAX_READ_ID    = 128;
 const unsigned int MAX_READ_CYCLE = 512;
@@ -37,21 +38,38 @@ typedef struct {
 	char seq[  MAX_READ_CYCLE ];
 	char qual[ MAX_READ_CYCLE ];
 	unsigned int size;
-} READ;
+} CSEREAD_OLD;
 
 typedef struct {
-	string id;
-	string seq1;
-	string qual1;
-	string seq2;
-	string qual2;
-} CppPERead;
+	char *id;
+	char *seq;
+	char *qual;
+	unsigned int size;
+} CSEREAD;
 
 typedef struct {
-	string id;
-	string seq;
-	string qual;
-} CppSERead;
+	char id1[   MAX_READ_ID    ];
+	char seq1[  MAX_READ_CYCLE ];
+	char qual1[ MAX_READ_CYCLE ];
+	unsigned int size;
+
+	char id2[   MAX_READ_ID    ];
+	char seq2[  MAX_READ_CYCLE ];
+	char qual2[ MAX_READ_CYCLE ];
+	unsigned int size2;
+} CPEREAD_OLD;
+
+typedef struct {
+	char *id1;
+	char *seq1;
+	char *qual1;
+	unsigned int size;
+
+	char *id2;
+	char *seq2;
+	char *qual2;
+	unsigned int size2;
+} CPEREAD;
 
 typedef struct {
 	unsigned int *dropped;
@@ -110,15 +128,20 @@ const char * bgi_index3 = "TCG";		// for single-end data
 // seed and error configurations
 const unsigned int impossible_seed = 10000;
 const unsigned int MAX_READ_LENGTH = 1024;
+const unsigned int MAX_SEED_NUM    = 128;
 
 //configurations for parallelization, which is highly related to memory usage
-const int READS_PER_BATCH            = 1 << 18;	// process 256 K reads per batch (for parallelization)
-const int BUFFER_SIZE_PER_BATCH_READ = 1 << 28;	// 256 MB buffer for each thread to store FASTQ
+//but seems to have very minor effect on running time
+const int READS_PER_BATCH            = 1 << 16;	// process 256 K reads per batch (for parallelization)
+const int BUFFER_SIZE_PER_BATCH_READ = 1 << 26;	// 256 MB buffer for each thread to store FASTQ
+const int MEM_SE_READSET = READS_PER_BATCH * (MAX_READ_ID+MAX_READ_CYCLE+MAX_READ_CYCLE);
+const int MEM_PE_READSET = READS_PER_BATCH * (MAX_READ_ID+MAX_READ_CYCLE+MAX_READ_CYCLE) * 2;
+
 // enlarge the buffer for single-thread run
 //const int READS_PER_BATCH_ST = READS_PER_BATCH << 1;	// process 256 K reads per batch (for parallelization)
 //const int BUFFER_SIZE_PER_BATCH_READ_ST = BUFFER_SIZE_PER_BATCH_READ << 1;	// 256 MB buffer for each thread to store FASTQ
-const int READS_PER_BATCH_ST = READS_PER_BATCH;	// process 256 K reads per batch (for parallelization)
-const int BUFFER_SIZE_PER_BATCH_READ_ST = BUFFER_SIZE_PER_BATCH_READ;	// 256 MB buffer for each thread to store FASTQ
+const int READS_PER_BATCH_ST            = 1 << 16;	// process 256 K reads for single-thread
+const int BUFFER_SIZE_PER_BATCH_READ_ST = 1 << 26;	// 256 MB buffer for single-thread to store FASTQ
 
 const char FILE_SEPARATOR = ',';
 
@@ -132,6 +155,7 @@ typedef struct {
 	unsigned int phred;
 	unsigned int minqual;
 	unsigned int quality;
+	unsigned int window;
 
 	const char *seqKit, *seqA, *seqB;
 	const char *adapter_r1, *adapter_r2;
@@ -142,7 +166,7 @@ typedef struct {
 	float mismatch_rate;
 } ktrim_param;
 
-const char * param_list = "1:2:U:o:t:k:s:p:q:a:b:m:hv";
+const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:hv";
 
 // definition of functions
 void usage();
@@ -151,15 +175,16 @@ int  process_cmd_param( int argc, char * argv[], ktrim_param &kp );
 void print_param( const ktrim_param &kp );
 void extractFileNames( const char *str, vector<string> & Rs );
 
-unsigned int load_batch_data_PE( ifstream & fq1, ifstream &fq2, CppPERead *loadingReads, unsigned int num );
-bool check_mismatch_dynamic_PE( const string & s1, string & s2, unsigned int pos, const ktrim_param &kp );
-int process_single_thread_PE( const ktrim_param &kp );
-int process_multi_thread_PE(  const ktrim_param &kp );
+// C-style
+unsigned int load_batch_data_PE_C( FILE * fq1, FILE * fq2, CPEREAD *loadingReads, unsigned int num );
+bool check_mismatch_dynamic_PE_C( const CPEREAD *read, unsigned int pos, const ktrim_param &kp );
+int process_single_thread_PE_C( const ktrim_param &kp );
+int process_multi_thread_PE_C(  const ktrim_param &kp );
 
-unsigned int load_batch_data_SE( ifstream & fq1, CppSERead *loadingReads, unsigned int num );
-bool check_mismatch_dynamic_SE( const string & s1, unsigned int pos, const ktrim_param &kp );
-int process_single_thread_SE( const ktrim_param &kp );
-int process_multi_thread_SE(  const ktrim_param &kp );
+unsigned int load_batch_data_SE_C( FILE * fp, CSEREAD *loadingReads, unsigned int num );
+bool check_mismatch_dynamic_SE_C( const char * p, unsigned int pos, const ktrim_param &kp );
+int process_single_thread_SE_C( const ktrim_param &kp );
+int process_multi_thread_SE_C(  const ktrim_param &kp );
 
 #endif
 
