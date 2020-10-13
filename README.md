@@ -1,3 +1,4 @@
+![image](https://github.com/hellosunking/hellosunking.github.io/blob/master/logos/Ktrim.png)
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
 Version 1.2.0, Jun 2020 -- "Dragonboat"<br />
