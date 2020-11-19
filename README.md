@@ -18,8 +18,8 @@ The author is pleased to release version 1.2.1 of Ktrim. The major improvements 
 3. Optimize tail-hits for paired-end data. Over-trim rate shows a 10-fold decrease (from 3.8% to 0.37%)
 4. ~20% performance improvement in most scenarios, while ~10% defict for paired-end multi-thread mode.
 
-**IMPORTANT NOTICE: There is a bug in multi-file handling in v1.2.0 and previous versions of Ktrim, and
-all users should update to version 1.2.1.**
+**IMPORTANT NOTICE: There is a bug in multi-file handling in v1.2.0 and previous versions of Ktrim, therefore
+the author strongly recommend all users update to version 1.2.1 (or later versions).**
 
 ## Installation
 `Ktrim` is written in `C++` for GNU Linux/Unix platforms. After uncompressing the source package, you
