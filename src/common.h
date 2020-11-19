@@ -28,7 +28,7 @@
 #include <vector>
 using namespace std;
 
-const char * VERSION = "1.2.0 (Jun 2020) -- \"Dragonboat\"";
+const char * VERSION = "1.2.1 (Nov 2020)";
 // structure of a READ
 const unsigned int MAX_READ_ID    = 128;
 const unsigned int MAX_READ_CYCLE = 512;

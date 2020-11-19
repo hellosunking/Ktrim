@@ -220,6 +220,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		workingReads = readA;
 		bool nextBatch = true;
 		unsigned int threadLoaded;
+		unsigned int NumWkThreads;
 		while( nextBatch ) {
 			// start parallalization
 			omp_set_num_threads( kp.thread );
@@ -229,11 +230,14 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 				// if EOF is met, then all threads are used for analysis
 				// otherwise 1 thread will do data loading
 				if( metEOF ) {
+					NumWkThreads = kp.thread;
 					unsigned int start = loaded * tn / kp.thread;
 					unsigned int end   = loaded * (tn+1) / kp.thread;
 					workingThread_SE_C( tn, start, end, workingReads, &kstat, &writebuffer, kp );
 					nextBatch = false;
 				} else {	// use 1 thread to load file, others for trimming
+					NumWkThreads = threadCNT;
+
 					if( tn == threadCNT ) {
 						if( file_is_gz ) {
 							threadLoaded = load_batch_data_SE_GZ( gfp, loadingReads, READS_PER_BATCH );
@@ -257,7 +261,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 			loadingReads = workingReads;
 			workingReads = swapReads;
 			// write output and update fastq statistics
-			for( unsigned int ii=0; ii!=kp.thread; ++ii ) {
+			for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
 				fwrite( writebuffer.buffer1[ii], sizeof(char), writebuffer.b1stored[ii], fout1 );
 			}
 			line += loaded;
@@ -289,10 +293,10 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		real_all += kstat.real_adapter[i];
 		tail_all += kstat.tail_adapter[i];
 	}
-	fout << "Total: "	<< line		<< '\n'
-		 << "Dropped : " << dropped_all << '\n'
-		 << "Aadaptor: " << real_all	<< '\n'
-		 << "Tail Hit: " << tail_all	<< '\n';
+	fout << "Total\t"	<< line		<< '\n'
+		 << "Dropped\t" << dropped_all << '\n'
+		 << "Aadaptor\t" << real_all	<< '\n'
+		 << "TailHit\t" << tail_all	<< '\n';
 	fout.close();
 
 	//free memory
@@ -443,10 +447,10 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 		return 105;
 	}
 
-	fout << "Total: "    << line					<< '\n'
-		 << "Dropped : " << kstat.dropped[0]		<< '\n'
-		 << "Aadaptor: " << kstat.real_adapter[0]	<< '\n'
-		 << "Tail Hit: " << kstat.tail_adapter[0]	<< '\n';
+	fout << "Total\t"    << line					<< '\n'
+		 << "Dropped\t"  << kstat.dropped[0]		<< '\n'
+		 << "Aadaptor\t" << kstat.real_adapter[0]	<< '\n'
+		 << "TailHit\t"  << kstat.tail_adapter[0]	<< '\n';
 	fout.close();
 
 	//free memory
