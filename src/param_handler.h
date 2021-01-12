@@ -107,7 +107,12 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 		}
 		kp.FASTQU = kp.FASTQ1;
 	}
-	
+	if( kp.outpre == NULL ) {
+		cerr << "\033[1;31mError: No output specified ('-o' not set)!\033[0m\n";
+		usage();
+		return 3;
+	}
+
 	// check optional parameters
 	if( kp.thread == 0 ) {
 		cerr << "Warning: thread is set to 0! I will use all threads instead.\n";

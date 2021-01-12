@@ -1,8 +1,15 @@
 Ktrim change log
 
+v1.2.2 Jan 2021
+	* Fix bug when "-o" is NOT present but the program does not quit
+
+v1.2.1 Nov 2020
+	* Fix bug in multi-file handling
+
 v1.2.0 Jun 2020
 	* Support Gzip-compressed files as input
 	* Support '-w' option to check quality scores within a window rather than 1 bp
+	* Optimize adaptor handling in paired-end data
 
 v1.1.1 Mar 2020
 	* Optimize cout and cerr output streams
