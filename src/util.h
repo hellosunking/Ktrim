@@ -46,7 +46,7 @@ unsigned int load_batch_data_SE_C( FILE * fp, CSEREAD *loadingReads, unsigned in
 	while( p != q ) {
 		if( fgets( p->id, MAX_READ_ID,  fp ) == NULL ) break;
 		fgets( p->seq,  MAX_READ_CYCLE, fp );
-		fgets( p->qual, MAX_READ_ID,    fp );	// this line is useless
+		fgets( p->qual, MAX_READ_CYCLE, fp );	// this line is useless
 		fgets( p->qual, MAX_READ_CYCLE, fp );
 
 		// remove the tail '\n'
@@ -63,6 +63,7 @@ unsigned int load_batch_data_SE_C( FILE * fp, CSEREAD *loadingReads, unsigned in
 	return p-loadingReads;
 }
 
+// update in v1.2: support Gzipped input file
 unsigned int load_batch_data_SE_GZ( gzFile gfp, CSEREAD *loadingReads, unsigned int num ) {
 	register unsigned int loaded = 0;
 //	string unk;
@@ -74,7 +75,7 @@ unsigned int load_batch_data_SE_GZ( gzFile gfp, CSEREAD *loadingReads, unsigned 
 	while( p != q ) {
 		if( gzgets( gfp, p->id, MAX_READ_ID ) == NULL ) break;
 		gzgets( gfp, p->seq,  MAX_READ_CYCLE );
-		gzgets( gfp, p->qual, MAX_READ_ID );	// this line is useless
+		gzgets( gfp, p->qual, MAX_READ_CYCLE );	// this line is useless
 		gzgets( gfp, p->qual, MAX_READ_CYCLE );
 //		fprintf( stderr, "GZload: %s%s%s", p->id, p->seq, p->qual);
 
@@ -101,7 +102,7 @@ unsigned int load_batch_data_PE_C( FILE *fq1, FILE *fq2, CPEREAD *loadingReads, 
 	while( p != q ) {
 		if( fgets( p->id1, MAX_READ_ID,  fq1 ) == NULL ) break;
 		fgets( p->seq1,  MAX_READ_CYCLE, fq1 );
-		fgets( p->qual1, MAX_READ_ID,    fq1 );	// this line is useless
+		fgets( p->qual1, MAX_READ_CYCLE, fq1 );	// this line is useless
 		fgets( p->qual1, MAX_READ_CYCLE, fq1 );
 		p->size = strlen( p->seq1 );
 
@@ -125,7 +126,7 @@ unsigned int load_batch_data_PE_C( FILE *fq1, FILE *fq2, CPEREAD *loadingReads, 
 	while( s != p ) {
 		fgets( s->id2,   MAX_READ_ID,    fq2 );
 		fgets( s->seq2,  MAX_READ_CYCLE, fq2 );
-		fgets( s->qual2, MAX_READ_ID,    fq2 );	// this line is useless
+		fgets( s->qual2, MAX_READ_CYCLE, fq2 );	// this line is useless
 		fgets( s->qual2, MAX_READ_CYCLE, fq2 );
 		s->size2 = strlen( s->seq2 );
 /*
@@ -151,6 +152,8 @@ unsigned int load_batch_data_PE_C( FILE *fq1, FILE *fq2, CPEREAD *loadingReads, 
 			s->size = s->size2;
 
 		// remove the tail '\n'
+		// in fact, it is not essential to do this step, because '\n' has a very low ascii value (10)
+		// therefore it will be quality-trimmed
 		-- s->size;
 		register unsigned int i = s->size;
 		s->seq1[  i ] = 0;
@@ -166,13 +169,14 @@ unsigned int load_batch_data_PE_C( FILE *fq1, FILE *fq2, CPEREAD *loadingReads, 
 	return p - loadingReads;
 }
 
+// update in v1.2: support Gzipped input file
 unsigned int load_batch_data_PE_GZ( gzFile gfp1, gzFile gfp2, CPEREAD *loadingReads, unsigned int num ) {
 	//register unsigned int loaded = 0;
 	register CPEREAD *p = loadingReads;
 	register CPEREAD *q = p + num;
 	register CPEREAD *s = p;
 	while( p != q ) {
-		if( gzgets( gfp1, p->id1, MAX_READ_ID ) == NULL ) break;
+		if( gzgets( gfp1, p->id1, MAX_READ_ID  ) == NULL ) break;
 		gzgets( gfp1, p->seq1,  MAX_READ_CYCLE );
 		gzgets( gfp1, p->qual1, MAX_READ_CYCLE );	// this line is useless
 		gzgets( gfp1, p->qual1, MAX_READ_CYCLE );
@@ -181,7 +185,7 @@ unsigned int load_batch_data_PE_GZ( gzFile gfp1, gzFile gfp2, CPEREAD *loadingRe
 		++ p;
 	}
 	while( s != p ) {
-		gzgets( gfp2, s->id2,   MAX_READ_ID );
+		gzgets( gfp2, s->id2,   MAX_READ_ID    );
 		gzgets( gfp2, s->seq2,  MAX_READ_CYCLE );
 		gzgets( gfp2, s->qual2, MAX_READ_CYCLE );	// this line is useless
 		gzgets( gfp2, s->qual2, MAX_READ_CYCLE );

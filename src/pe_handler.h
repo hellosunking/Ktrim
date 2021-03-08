@@ -1,6 +1,6 @@
 /**
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date: Feb, 2020
+ * Date: Mar, 2021
  * This program is part of the Ktrim package
 **/
 
@@ -24,19 +24,7 @@ void inline CPEREAD_resize( CPEREAD * read, int n ) {
 }
 
 bool inline is_revcomp( const char a, const char b ) {
-/*
-	if( a=='A' )
-		return b=='T';
-	if( a=='C' )
-		return b=='G';
-	if( a=='G' )
-		return b=='C';
-	if( a=='T' )
-		return b=='A';
-
 	//TODO: consider how to deal with N, call it positive or negative???
-	return false;
-*/
 	switch( a ) {
 		case 'A': return b=='T';
 		case 'C': return b=='G';
@@ -144,6 +132,9 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 				CPEREAD_resize( wkr, *it );
 			} else {	// drop this read as its length is not enough
 				++ kstat->dropped[tn];
+
+				if( *it <= DIMER_INSERT )
+					++ kstat->dimer[tn];
 				continue;
 			}
 		} else {	// seed not found, now check the tail 2 or 1, if perfect match, drop these 2
@@ -225,6 +216,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 	kstat.dropped	   = new unsigned int [ kp.thread ];
 	kstat.real_adapter = new unsigned int [ kp.thread ];
 	kstat.tail_adapter = new unsigned int [ kp.thread ];
+	kstat.dimer        = new unsigned int [ kp.thread ];
 
 	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
@@ -234,12 +226,15 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 	writebuffer.b2stored = new unsigned int [ kp.thread ];
 
 	for(unsigned int i=0; i!=kp.thread; ++i) {
-		writebuffer.buffer1[i] = new char[ BUFFER_SIZE_PER_BATCH_READ ];
-		writebuffer.buffer2[i] = new char[ BUFFER_SIZE_PER_BATCH_READ ];
+		writebuffer.buffer1[i]  = new char[ BUFFER_SIZE_PER_BATCH_READ ];
+		writebuffer.buffer2[i]  = new char[ BUFFER_SIZE_PER_BATCH_READ ];
+		writebuffer.b1stored[i] = 0;
+		writebuffer.b2stored[i] = 0;
 
 		kstat.dropped[i] = 0;
 		kstat.real_adapter[i] = 0;
 		kstat.tail_adapter[i] = 0;
+		kstat.dimer[i] = 0;
 	}
 
 // deal with multiple input files
@@ -295,6 +290,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 				return 104;
 			}
 		}
+//		fprintf( stderr, "Loading files:\nRead1: %s\nRead2: %s\n", p, q );
 
 		// initialization
 		// get first batch of fastq reads
@@ -334,7 +330,6 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 					nextBatch = false;
 				} else {	// use 1 thread to load files, others for trimming
 					NumWkThreads = threadCNT;
-
 					if( tn == threadCNT ) {
 						if( file_is_gz ) {
 							threadLoaded = load_batch_data_PE_GZ( gfp1, gfp2, loadingReads, READS_PER_BATCH );
@@ -356,10 +351,6 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 //				float duration = (end - start)*1000.0 / CLOCKS_PER_SEC;
 //				fprintf( stderr, "Thread %d, runtime %.1f\n", tn, duration );
 			} // parallel body
-			// swap workingReads and loadingReads for next loop
-			swapReads	 = loadingReads;
-			loadingReads = workingReads;
-			workingReads = swapReads;
 			// write output and update fastq statistics
 			for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
 				fwrite( writebuffer.buffer1[ii], sizeof(char), writebuffer.b1stored[ii], fout1 );
@@ -369,7 +360,13 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 			}
 			line += loaded;
 			loaded = threadLoaded;
-			//cerr << '\r' << line << " reads loaded";
+			// swap workingReads and loadingReads for next loop
+			swapReads	 = loadingReads;
+			loadingReads = workingReads;
+			workingReads = swapReads;
+
+//			cerr << '\r' << line << " reads loaded";
+//			cerr << line << " reads loaded, metEOF=" << metEOF << ", next=" << nextBatch << "\n";
 		}
 
 		if( file_is_gz ) {
@@ -379,13 +376,21 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 			fclose( fq1 );
 			fclose( fq2 );
 		}
-	}
+		cerr << '\n';
+	} // all input files are loaded
 
 	fclose( fout1 );
 	fclose( fout2 );
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
+	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0;
+	for( unsigned int i=0; i!=kp.thread; ++i ) {
+		dropped_all += kstat.dropped[i];
+		real_all  += kstat.real_adapter[i];
+		tail_all  += kstat.tail_adapter[i];
+		dimer_all += kstat.dimer[i];
+	}
 	fileName = kp.outpre;
 	fileName += ".trim.log";
 	ofstream fout( fileName.c_str() );
@@ -393,16 +398,11 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 		fprintf( stderr, "\033[1;34mError: cannot write log file!\033[0m\n" );
 		return 105;
 	}
-	int dropped_all=0, real_all=0, tail_all=0;
-	for( unsigned int i=0; i!=kp.thread; ++i ) {
-		dropped_all += kstat.dropped[i];
-		real_all += kstat.real_adapter[i];
-		tail_all += kstat.tail_adapter[i];
-	}
 	fout << "Total\t"    << line		<< '\n'
 		 << "Dropped\t"  << dropped_all << '\n'
 		 << "Aadaptor\t" << real_all	<< '\n'
-		 << "TailHit\t"  << tail_all	<< '\n';
+		 << "TailHit\t"  << tail_all	<< '\n'
+		 << "Dimer\t"    << dimer_all	<< '\n';
 	fout.close();
 
 	//free memory
@@ -416,6 +416,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 	delete [] kstat.dropped;
 	delete [] kstat.real_adapter;
 	delete [] kstat.tail_adapter;
+	delete [] kstat.dimer;
 
 	delete [] readA;
 	delete [] readB;
@@ -454,9 +455,11 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 	kstat.dropped	   = new unsigned int [ 1 ];
 	kstat.real_adapter = new unsigned int [ 1 ];
 	kstat.tail_adapter = new unsigned int [ 1 ];
+	kstat.dimer        = new unsigned int [ 1 ];
 	kstat.dropped[0] = 0;
 	kstat.real_adapter[0] = 0;
 	kstat.tail_adapter[0] = 0;
+	kstat.dimer[0] = 0;
 
 	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
@@ -578,7 +581,8 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 	fout << "Total\t"	 << line					<< '\n'
 		 << "Dropped\t"  << kstat.dropped[0]		<< '\n'
 		 << "Aadaptor\t" << kstat.real_adapter[0]	<< '\n'
-		 << "TailHit\t"  << kstat.tail_adapter[0]	<< '\n';
+		 << "TailHit\t"  << kstat.tail_adapter[0]	<< '\n'
+		 << "Dimer\t"    << kstat.dimer[0]			<< '\n';
 	fout.close();
 
 	delete [] read;

@@ -1,7 +1,7 @@
 ![Ktrim logo](https://github.com/hellosunking/hellosunking.github.io/blob/master/logos/Ktrim.png "Ktrim logo")
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
-Version 1.2.2, Jan 2021<br />
+Version 1.3.0, Mar 2021<br />
 Author: Kun Sun \(sunkun@szbl.ac.cn\)<br />
 <br />
 Distributed under the
@@ -11,8 +11,11 @@ For detailed information please refer to the license files under `license` direc
 
 ---
 
+## Release of version 1.3
+The author is pleased to release version 1.2 of Ktrim. In this version, Ktrim reports the number of adapter dimers in the sequencing data. You may visit [here](https://support.illumina.com/bulletins/2019/10/what-are-adapter-dimers-.html) for more information on adapter dimers.
+
 ## Release of version 1.2
-The author is pleased to release version 1.2 of Ktrim. The major improvements in this version are:
+The major improvements in this version are:
 1. Support `Gzip` compressed file as input (requires `zlib`; ~30% slower than plain text)
 2. Support quality trimming using a window, while not just 1 base
 3. Optimize tail-hits for paired-end data. Over-trim rate shows a 10-fold decrease (from 3.8% to 0.37%)
@@ -50,7 +53,7 @@ Call `ktrim` without any parameters to see the usage (or use '-h' option):
 Usage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o out.prefix
 
 Author : Kun Sun (sunkun@szbl.ac.cn)
-Version: 1.2.2 (Jan 2021)
+Version: 1.3.0 (Mar 2021)
 
 Ktrim is designed to perform adapter- and quality-trimming of FASTQ files.
 

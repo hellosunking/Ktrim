@@ -1,6 +1,6 @@
 /**
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date:   Feb, 2020
+ * Date:   Mar, 2021
  * This program is part of the Ktrim package
 **/
 
@@ -98,6 +98,10 @@ void workingThread_SE_C( unsigned int tn, unsigned int start, unsigned int end, 
 				CSEREAD_resize( wkr, *it );
 			} else {	// drop this read as its length is not enough
 				++ kstat->dropped[tn];
+
+				if( *it <= DIMER_INSERT )
+				  ++ kstat->dimer[tn];
+
 				continue;
 			}
 		} else {	// seed not found, now check the tail 2, if perfect match, drop these 2; Single-end reads do not check tail 1
@@ -148,6 +152,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	kstat.dropped	   = new unsigned int [ kp.thread ];
 	kstat.real_adapter = new unsigned int [ kp.thread ];
 	kstat.tail_adapter = new unsigned int [ kp.thread ];
+	kstat.dimer	       = new unsigned int [ kp.thread ];
 
 	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
@@ -155,11 +160,13 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	writebuffer.b1stored = new unsigned int	[ kp.thread ];
 
 	for(unsigned int i=0; i!=kp.thread; ++i) {
-		writebuffer.buffer1[i] = new char[ BUFFER_SIZE_PER_BATCH_READ ];
+		writebuffer.buffer1[i]  = new char[ BUFFER_SIZE_PER_BATCH_READ ];
+		writebuffer.b1stored[i] = 0;
 
 		kstat.dropped[i] = 0;
 		kstat.real_adapter[i] = 0;
 		kstat.tail_adapter[i] = 0;
+		kstat.dimer[i] = 0;
 	}
 
 	// deal with multiple input files
@@ -237,7 +244,6 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 					nextBatch = false;
 				} else {	// use 1 thread to load file, others for trimming
 					NumWkThreads = threadCNT;
-
 					if( tn == threadCNT ) {
 						if( file_is_gz ) {
 							threadLoaded = load_batch_data_SE_GZ( gfp, loadingReads, READS_PER_BATCH );
@@ -280,6 +286,13 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
+	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0;
+	for( unsigned int i=0; i!=kp.thread; ++i ) {
+		dropped_all += kstat.dropped[i];
+		real_all  += kstat.real_adapter[i];
+		tail_all  += kstat.tail_adapter[i];
+		dimer_all += kstat.dimer[i];
+	}
 	fileName = kp.outpre;
 	fileName += ".trim.log";
 	ofstream fout( fileName.c_str() );
@@ -287,16 +300,11 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		fprintf( stderr, "\033[1;34mError: cannot write log file!\033[0m\n" );
 		return 105;
 	}
-	int dropped_all=0, real_all=0, tail_all=0;
-	for( unsigned int i=0; i!=kp.thread; ++i ) {
-		dropped_all += kstat.dropped[i];
-		real_all += kstat.real_adapter[i];
-		tail_all += kstat.tail_adapter[i];
-	}
-	fout << "Total\t"	<< line		<< '\n'
-		 << "Dropped\t" << dropped_all << '\n'
+	fout << "Total\t"	 << line		<< '\n'
+		 << "Dropped\t"  << dropped_all << '\n'
 		 << "Aadaptor\t" << real_all	<< '\n'
-		 << "TailHit\t" << tail_all	<< '\n';
+		 << "TailHit\t"  << tail_all	<< '\n'
+		 << "Dimer\t"    << dimer_all	<< '\n';
 	fout.close();
 
 	//free memory
@@ -450,7 +458,8 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 	fout << "Total\t"    << line					<< '\n'
 		 << "Dropped\t"  << kstat.dropped[0]		<< '\n'
 		 << "Aadaptor\t" << kstat.real_adapter[0]	<< '\n'
-		 << "TailHit\t"  << kstat.tail_adapter[0]	<< '\n';
+		 << "TailHit\t"  << kstat.tail_adapter[0]	<< '\n'
+		 << "Dimer\t"    << kstat.dimer[0]			<< '\n';
 	fout.close();
 
 	//free memory

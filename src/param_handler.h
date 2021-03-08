@@ -1,6 +1,6 @@
 /**
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date: Feb, 2020 
+ * Date: Jun, 2020 
  * This program is part of the Ktrim package
 **/
 
@@ -108,18 +108,20 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 		kp.FASTQU = kp.FASTQ1;
 	}
 	if( kp.outpre == NULL ) {
-		cerr << "\033[1;31mError: No output specified ('-o' not set)!\033[0m\n";
+		cerr << "\033[1;31mError: No output file specified ('-o' not set)!\033[0m\n";
 		usage();
 		return 3;
 	}
-
+	
 	// check optional parameters
 	if( kp.thread == 0 ) {
 		cerr << "Warning: thread is set to 0! I will use all threads instead.\n";
 		kp.thread = omp_get_max_threads();
+		if( kp.thread > 4 )
+			kp.thread = 4;
 	}
 	if( kp.thread > 4 ) {
-		cerr << "Warning: we discourage the usage of more than 4-threads.\n";
+		cerr << "Warning: we strongly discourage the usage of more than 4-threads.\n";
 	}
 	if( kp.min_length < 10 ) {
 		cerr << "\033[1;31mError: invalid min_length! Must be a positive number larger than 10!\033[0m\n";
@@ -237,7 +239,7 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o ou
 	 << "                  Note that if '-U' is used, specification of '-2' is invalid\n"
 	 << "                  If you have multiple files for your sample, use '"
 							<< FILE_SEPARATOR << "' to separate them\n"
-     << "                  Gzipped files are supported from version 1.2.0\n\n"
+     << "                  Note that Gzip-compressed files are supported from version 1.2.0\n\n"
 
 	 << "  -o out.prefix   Specify the prefix of the output files\n"
 	 << "                  Note that output files include trimmed reads in FASTQ format and statistics\n\n"
