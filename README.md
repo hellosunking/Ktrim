@@ -16,9 +16,9 @@ The author is pleased to release version 1.2 of Ktrim. In this version, Ktrim re
 
 ## Release of version 1.2
 The major improvements in this version are:
-1. Support `Gzip` compressed file as input (requires `zlib`; ~30% slower than plain text)
-2. Support quality trimming using a window, while not just 1 base
-3. Optimize tail-hits for paired-end data. Over-trim rate shows a 10-fold decrease (from 3.8% to 0.37%)
+1. Support `Gzip` compressed file as input (requires `zlib`; ~30% slower than plain text);
+2. Support quality trimming using a window, while not just 1 base;
+3. Optimize tail-hits for paired-end data. Over-trim rate shows a 10-fold decrease (from 3.8% to 0.37%);
 4. ~20% performance improvement in most scenarios, while ~10% defict for paired-end multi-thread mode.
 
 **IMPORTANT NOTICE: There is a bug in multi-file handling in v1.2.0 and previous versions of Ktrim, therefore
