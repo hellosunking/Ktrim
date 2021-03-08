@@ -1,7 +1,7 @@
 Ktrim change log
 
 v1.3.0 Mar 2021
-	* Add "Dimer"
+	* Report number the adapter dimers in the sequencing data
 
 v1.2.2 Jan 2021
 	* Fix bug when "-o" is NOT present but the program does not quit
