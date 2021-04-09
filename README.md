@@ -1,7 +1,7 @@
 ![Ktrim logo](https://github.com/hellosunking/hellosunking.github.io/blob/master/logos/Ktrim.png "Ktrim logo")
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
-Version 1.3.0, Mar 2021<br />
+Version 1.3.1, Apr 2021<br />
 Author: Kun Sun \(sunkun@szbl.ac.cn\)<br />
 <br />
 Distributed under the
@@ -12,7 +12,10 @@ For detailed information please refer to the license files under `license` direc
 ---
 
 ## Release of version 1.3
-The author is pleased to release version 1.2 of Ktrim. In this version, Ktrim reports the number of adapter dimers in the sequencing data. You may visit [here](https://support.illumina.com/bulletins/2019/10/what-are-adapter-dimers-.html) for more information on adapter dimers.
+The author is pleased to release version 1.2 of Ktrim. In this version, Ktrim reports the number of
+adapter dimers in the sequencing data. You may visit
+[here](https://support.illumina.com/bulletins/2019/10/what-are-adapter-dimers-.html) for more information
+on adapter dimers.
 
 ## Release of version 1.2
 The major improvements in this version are:

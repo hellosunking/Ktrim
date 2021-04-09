@@ -28,8 +28,9 @@
 #include <vector>
 using namespace std;
 
-const char * VERSION = "1.3.0 (Mar 2021)";
+const char * VERSION = "1.3.1 (Apr 2021)";
 
+// 1.3.1 fixed the bug in dimers when working on SE data processing using single-thread 
 // 1.2.2 fixed the bug when "-o" is NOT present but the program does not quit
 // 1.2.1 fixed the bug in multi-file handling
 

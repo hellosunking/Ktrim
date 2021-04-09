@@ -346,9 +346,11 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 	kstat.dropped	   = new unsigned int [ 1 ];
 	kstat.real_adapter = new unsigned int [ 1 ];
 	kstat.tail_adapter = new unsigned int [ 1 ];
+	kstat.dimer        = new unsigned int [ 1 ];
 	kstat.dropped[0] = 0;
 	kstat.real_adapter[0] = 0;
 	kstat.tail_adapter[0] = 0;
+	kstat.dimer[0] = 0;
 
 	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
