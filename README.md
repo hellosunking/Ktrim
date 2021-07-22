@@ -12,7 +12,7 @@ For detailed information please refer to the license files under `license` direc
 ---
 
 ## Release of version 1.3
-The author is pleased to release version 1.2 of Ktrim. In this version, Ktrim reports the number of
+The author is pleased to release version 1.3 of Ktrim. In this version, Ktrim reports the number of
 adapter dimers in the sequencing data. You may visit
 [here](https://support.illumina.com/bulletins/2019/10/what-are-adapter-dimers-.html) for more information
 on adapter dimers.
