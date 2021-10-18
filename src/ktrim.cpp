@@ -40,6 +40,8 @@ int main( int argc, char *argv[] ) {
 	} else {
 		if( kp.thread == 1 )
 			retValue = process_single_thread_PE_C( kp );
+		else if( kp.thread == 2 )
+			retValue = process_two_thread_PE_C( kp );
 		else
 			retValue = process_multi_thread_PE_C( kp );
 	}

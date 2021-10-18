@@ -10,12 +10,10 @@ for personal and academic usage only.<br />
 For detailed information please refer to the license files under `license` directory.
 
 ---
-
-## Release of version 1.3
-The author is pleased to release version 1.3 of Ktrim. In this version, Ktrim reports the number of
-adapter dimers in the sequencing data. You may visit
-[here](https://support.illumina.com/bulletins/2019/10/what-are-adapter-dimers-.html) for more information
-on adapter dimers.
+## Release of version 1.4
+The author is pleased to release version 1.4 of Ktrim. In this version, file loading procedure has been
+optimized to provide a ~50% speed-up for paired-end data processing using 4 threads. However, single-end
+data is not affected.
 
 ## Release of version 1.2
 The major improvements in this version are:
@@ -56,7 +54,7 @@ Call `ktrim` without any parameters to see the usage (or use '-h' option):
 Usage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o out.prefix
 
 Author : Kun Sun (sunkun@szbl.ac.cn)
-Version: 1.3.0 (Mar 2021)
+Version: 1.4.0 (Oct 2021)
 
 Ktrim is designed to perform adapter- and quality-trimming of FASTQ files.
 
@@ -105,8 +103,8 @@ Optional parameters:
   -m proportion   Set the proportion of mismatches allowed during index and sequence comparison
                   Default: 0.125 (i.e., 1/8 of compared base pairs)
 
-  -h/--help       Show this help information and quit
-  -v/--version    Show the software version and quit
+  -h              Show this help information and quit
+  -v              Show the software version and quit
 
 Please refer to README.md file for more information (e.g., setting adapters).
 
@@ -114,7 +112,7 @@ Ktrim: extra-fast and accurate adapter- and quality-trimmer.
 ```
 
 Please note that from version 1.2.0, Ktrim supports Gzip-compressed files as input. If you have multiple
-lanes of FASTQ files, Ktrim even supports that some lanes are compressed while others are plain text, as
+lanes of FASTQ files, Ktrim even supports that some lanes are compressed while others are in plain text, as
 long as READ1 and READ2 are the same (either both compressed or plain text) for each lane of paired-end data.
 
 `Ktrim` contains built-in adapter sequences used by Illumina TruSeq kits, Nextera kits, Nextera transposase
@@ -129,7 +127,7 @@ Here are the built-in adapter sequences (the copyright should belong to the corr
 Illumina TruSeq kits:
 AGATCGGAAGAGC (for both read 1 and read 2)
 
-Nextera kits (suitable for ATAC-seq data):
+Nextera kits (suitable for ATAC-seq, Cut & tag data):
 CTGTCTCTTATACACATCT (for both read 1 and read 2)
 
 BGI adapters:

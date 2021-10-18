@@ -28,8 +28,9 @@
 #include <vector>
 using namespace std;
 
-const char * VERSION = "1.3.1 (Apr 2021)";
+const char * VERSION = "1.4.0 (Oct 2021)";
 
+// 1.4.0, now we use 2 threads for reading files in PE mode, ~33% faster
 // 1.3.1 fixed the bug in dimers when working on SE data processing using single-thread 
 // 1.2.2 fixed the bug when "-o" is NOT present but the program does not quit
 // 1.2.1 fixed the bug in multi-file handling
@@ -116,22 +117,24 @@ const char * bgi_index2 = "AAG";		// use first 3 as index
 const char * bgi_index3 = "TCG";		// for single-end data
 
 // seed and error configurations
-const unsigned int impossible_seed = 10000;
+const unsigned int impossible_seed = 1000000;
 const unsigned int MAX_READ_LENGTH = 1024;
 const unsigned int MAX_SEED_NUM    = 128;
 
 //configurations for parallelization, which is highly related to memory usage
 //but seems to have very minor effect on running time
-const int READS_PER_BATCH            = 1 << 16;	// process 256 K reads per batch (for parallelization)
-const int BUFFER_SIZE_PER_BATCH_READ = 1 << 26;	// 256 MB buffer for each thread to store FASTQ
+const int READS_PER_BATCH            = 1 << 15;	// process 128 K reads per batch (for parallelization)
+const int BUFFER_SIZE_PER_BATCH_READ = 1 << 25;	// 128 MB buffer for each thread to store FASTQ
 const int MEM_SE_READSET = READS_PER_BATCH * (MAX_READ_ID+MAX_READ_CYCLE+MAX_READ_CYCLE);
 const int MEM_PE_READSET = READS_PER_BATCH * (MAX_READ_ID+MAX_READ_CYCLE+MAX_READ_CYCLE) * 2;
 
 // enlarge the buffer for single-thread run
 //const int READS_PER_BATCH_ST = READS_PER_BATCH << 1;	// process 256 K reads per batch (for parallelization)
 //const int BUFFER_SIZE_PER_BATCH_READ_ST = BUFFER_SIZE_PER_BATCH_READ << 1;	// 256 MB buffer for each thread to store FASTQ
-const int READS_PER_BATCH_ST            = 1 << 16;	// process 256 K reads for single-thread
-const int BUFFER_SIZE_PER_BATCH_READ_ST = 1 << 26;	// 256 MB buffer for single-thread to store FASTQ
+const int READS_PER_BATCH_ST            = 1 << 15;	// No. of reads per-batch for single-thread
+const int BUFFER_SIZE_PER_BATCH_READ_ST = 1 << 25;	// buffer for single-thread to store FASTQ
+const int MEM_SE_READSET_ST = READS_PER_BATCH_ST * (MAX_READ_ID+MAX_READ_CYCLE+MAX_READ_CYCLE);
+const int MEM_PE_READSET_ST = READS_PER_BATCH_ST * (MAX_READ_ID+MAX_READ_CYCLE+MAX_READ_CYCLE) * 2;
 
 const char FILE_SEPARATOR = ',';
 

@@ -37,7 +37,7 @@ void extractFileNames( const char *str, vector<string> & Rs ) {
 }
 
 //load 1 batch of data, using purely C-style
-unsigned int load_batch_data_SE_C( FILE * fp, CSEREAD *loadingReads, unsigned int num ) {
+unsigned int load_batch_data_SE_C( FILE *fp, CSEREAD *loadingReads, unsigned int num ) {
 	register unsigned int loaded = 0;
 //	string unk;
 	register CSEREAD *p = loadingReads;
@@ -91,14 +91,73 @@ unsigned int load_batch_data_SE_GZ( gzFile gfp, CSEREAD *loadingReads, unsigned 
 	return p-loadingReads;
 }
 
-unsigned int load_batch_data_PE_C( FILE *fq1, FILE *fq2, CPEREAD *loadingReads, unsigned int num ) {
+unsigned int load_batch_data_PE_C( FILE *fq, CPEREAD *loadingReads, const unsigned int num, const bool isRead1 ) {
+	//register unsigned int loaded = 0;
+	register CPEREAD *p = loadingReads;
+	register CPEREAD *q = p + num;
+	// load read1
+//	size_t read_char_num = 0;
+//	clock_t start = clock();
+
+	if( isRead1 ) {
+		while( p != q ) {
+			if( fgets( p->id1, MAX_READ_ID,  fq ) == NULL ) break;
+			fgets( p->seq1,  MAX_READ_CYCLE, fq );
+			fgets( p->qual1, MAX_READ_CYCLE, fq );	// this line is useless
+			fgets( p->qual1, MAX_READ_CYCLE, fq );
+			p->size = strlen( p->seq1 );
+
+			++ p;
+		}
+	} else {
+		while( p != q ) {
+			if( fgets( p->id2, MAX_READ_ID,  fq ) == NULL ) break;
+			fgets( p->seq2,  MAX_READ_CYCLE, fq );
+			fgets( p->qual2, MAX_READ_CYCLE, fq );	// this line is useless
+			fgets( p->qual2, MAX_READ_CYCLE, fq );
+			p->size2 = strlen( p->seq2 );
+
+			++ p;
+		}
+	}
+	return p - loadingReads;
+}
+
+// update in v1.2: support Gzipped input file
+unsigned int load_batch_data_PE_GZ( gzFile gfp, CPEREAD *loadingReads, const unsigned int num, const bool isRead1 ) {
+	//register unsigned int loaded = 0;
+	register CPEREAD *p = loadingReads;
+	register CPEREAD *q = p + num;
+	if( isRead1 ) {
+		while( p != q ) {
+			if( gzgets( gfp, p->id1, MAX_READ_ID  ) == NULL ) break;
+			gzgets( gfp, p->seq1,  MAX_READ_CYCLE );
+			gzgets( gfp, p->qual1, MAX_READ_CYCLE );	// this line is useless
+			gzgets( gfp, p->qual1, MAX_READ_CYCLE );
+			p->size = strlen( p->seq1 );
+
+			++ p;
+		}
+	} else {
+		while( p != q ) {
+			if( gzgets( gfp, p->id2, MAX_READ_ID  ) == NULL ) break;
+			gzgets( gfp, p->seq2,  MAX_READ_CYCLE );
+			gzgets( gfp, p->qual2, MAX_READ_CYCLE );	// this line is useless
+			gzgets( gfp, p->qual2, MAX_READ_CYCLE );
+			p->size2 = strlen( p->seq2 );
+
+			++ p;
+		}
+	}
+	return p - loadingReads;
+}
+
+unsigned int load_batch_data_PE_both_C( FILE *fq1, FILE *fq2, CPEREAD *loadingReads, unsigned int num ) {
 	//register unsigned int loaded = 0;
 	register CPEREAD *p = loadingReads;
 	register CPEREAD *q = p + num;
 	register CPEREAD *s = p;
 	// load read1
-//	size_t read_char_num = 0;
-//	clock_t start = clock();
 	while( p != q ) {
 		if( fgets( p->id1, MAX_READ_ID,  fq1 ) == NULL ) break;
 		fgets( p->seq1,  MAX_READ_CYCLE, fq1 );
@@ -106,71 +165,25 @@ unsigned int load_batch_data_PE_C( FILE *fq1, FILE *fq2, CPEREAD *loadingReads, 
 		fgets( p->qual1, MAX_READ_CYCLE, fq1 );
 		p->size = strlen( p->seq1 );
 
-/*
-		register char *pc = p->id1;
-		if( getline( &pc, &read_char_num, fq1 ) == -1 ) break;
-		pc = p->seq1;
-		p->size = getline( &pc, &read_char_num, fq1 );
-		pc = p->qual1;
-		getline( &pc, &read_char_num, fq1 );
-		getline( &pc, &read_char_num, fq1 );
-*/
-
 		++ p;
 	}
-//	clock_t end = clock();
-//	fprintf( stderr, "%.1f ", (end-start)*1000.0/CLOCKS_PER_SEC );
 
 	// load read2
-//	start = clock();
 	while( s != p ) {
 		fgets( s->id2,   MAX_READ_ID,    fq2 );
 		fgets( s->seq2,  MAX_READ_CYCLE, fq2 );
 		fgets( s->qual2, MAX_READ_CYCLE, fq2 );	// this line is useless
 		fgets( s->qual2, MAX_READ_CYCLE, fq2 );
 		s->size2 = strlen( s->seq2 );
-/*
-		register char *pc = s->id2;
-		if( getline( &pc, &read_char_num, fq2 ) == -1 ) break;
-		pc = s->seq2;
-		s->size2 = getline( &pc, &read_char_num, fq2 );
-		pc = s->qual2;
-		getline( &pc, &read_char_num, fq2 );
-		getline( &pc, &read_char_num, fq2 );
-*/
-		++ s;
-	}
-//	end = clock();
-//	fprintf( stderr, "%.1f ", (end-start)*1000.0/CLOCKS_PER_SEC );
-
-	// update in v1.1.0
-	// deal with size matter: if read 1 and read 2 sequences are of different size, keep the shorter one
-//	start = clock();
-	s = loadingReads;
-	while( s != p ) {
-		if( s->size > s->size2 )
-			s->size = s->size2;
-
-		// remove the tail '\n'
-		// in fact, it is not essential to do this step, because '\n' has a very low ascii value (10)
-		// therefore it will be quality-trimmed
-		-- s->size;
-		register unsigned int i = s->size;
-		s->seq1[  i ] = 0;
-		s->qual1[ i ] = 0;
-		s->seq2[  i ] = 0;
-		s->qual2[ i ] = 0;
 
 		++ s;
 	}
-//	end = clock();
-//	fprintf( stderr, "%.1f\n", (end-start)*1000.0/CLOCKS_PER_SEC );
 
 	return p - loadingReads;
 }
 
 // update in v1.2: support Gzipped input file
-unsigned int load_batch_data_PE_GZ( gzFile gfp1, gzFile gfp2, CPEREAD *loadingReads, unsigned int num ) {
+unsigned int load_batch_data_PE_both_GZ( gzFile gfp1, gzFile gfp2, CPEREAD *loadingReads, unsigned int num ) {
 	//register unsigned int loaded = 0;
 	register CPEREAD *p = loadingReads;
 	register CPEREAD *q = p + num;
@@ -190,23 +203,6 @@ unsigned int load_batch_data_PE_GZ( gzFile gfp1, gzFile gfp2, CPEREAD *loadingRe
 		gzgets( gfp2, s->qual2, MAX_READ_CYCLE );	// this line is useless
 		gzgets( gfp2, s->qual2, MAX_READ_CYCLE );
 		s->size2 = strlen( s->seq2 );
-
-		++ s;
-	}
-
-	// update in v1.1.0
-	// deal with size matter: if read 1 and read 2 sequences are of different size, keep the shorter one
-	s = loadingReads;
-	while( s != p ) {
-		if( s->size > s->size2 )
-			s->size = s->size2;
-
-		// remove the tail '\n'
-		-- s->size;
-		s->seq1[  s->size] = 0;
-		s->qual1[ s->size] = 0;
-		s->seq2[  s->size] = 0;
-		s->qual2[ s->size] = 0;
 
 		++ s;
 	}

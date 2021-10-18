@@ -34,6 +34,31 @@ bool inline is_revcomp( const char a, const char b ) {
 	}
 }
 
+void init_kstat_wrbuffer( ktrim_stat &kstat, writeBuffer &writebuffer, unsigned int nthread ) {
+	kstat.dropped	   = new unsigned int [ nthread ];
+	kstat.real_adapter = new unsigned int [ nthread ];
+	kstat.tail_adapter = new unsigned int [ nthread ];
+	kstat.dimer        = new unsigned int [ nthread ];
+
+	// buffer for storing the modified reads per thread
+	writebuffer.buffer1  = new char * [ nthread ];
+	writebuffer.buffer2  = new char * [ nthread ];
+	writebuffer.b1stored = new unsigned int	[ nthread ];
+	writebuffer.b2stored = new unsigned int [ nthread ];
+
+	for(unsigned int i=0; i!=nthread; ++i) {
+		writebuffer.buffer1[i]  = new char[ BUFFER_SIZE_PER_BATCH_READ ];
+		writebuffer.buffer2[i]  = new char[ BUFFER_SIZE_PER_BATCH_READ ];
+		writebuffer.b1stored[i] = 0;
+		writebuffer.b2stored[i] = 0;
+
+		kstat.dropped[i] = 0;
+		kstat.real_adapter[i] = 0;
+		kstat.tail_adapter[i] = 0;
+		kstat.dimer[i] = 0;
+	}
+}
+
 void find_seed_pe( vector<unsigned int> &seed, const CPEREAD *read, const ktrim_param & kp ) {
 	seed.clear();
 	register const char *poffset  = read->seq1;
@@ -72,6 +97,15 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 
 	register CPEREAD *wkr = workingReads + start;
 	for( unsigned int iii=end-start; iii; --iii, ++wkr ) {
+		// read size handling
+		if( wkr->size > wkr->size2 )
+		        wkr->size = wkr->size2;
+
+		// remove the tail '\n'
+		// in fact, it is not essential to do this step, because '\n' has a very low ascii value (10)
+		// therefore it will be quality-trimmed
+		CPEREAD_resize( wkr, wkr->size - 1 );
+
 		// quality control
 		register int i = get_quality_trim_cycle_pe( wkr, kp );
 		if( i == 0 ) { // not long enough
@@ -183,86 +217,80 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 //	cin.tie( NULL );
 
 	// in this version, two data containers are used and auto-swapped for working and loading data
-	CPEREAD *readA = new CPEREAD[ READS_PER_BATCH ];
-	CPEREAD *readB = new CPEREAD[ READS_PER_BATCH ];
-	register char *readA_data = new char[ MEM_PE_READSET ];
-	register char *readB_data = new char[ MEM_PE_READSET ];
-	
-	for( register int i=0, j=0; i!=READS_PER_BATCH; ++i ) {
-		readA[i].id1   = readA_data + j;
-		readB[i].id1   = readB_data + j;
-		j += MAX_READ_ID;
-		readA[i].seq1  = readA_data + j;
-		readB[i].seq1  = readB_data + j;
-		j += MAX_READ_CYCLE;
-		readA[i].qual1 = readA_data + j;
-		readB[i].qual1 = readB_data + j;
-		j += MAX_READ_CYCLE;
-		
-		readA[i].id2   = readA_data + j;
-		readB[i].id2   = readB_data + j;
-		j += MAX_READ_ID;
-		readA[i].seq2  = readA_data + j;
-		readB[i].seq2  = readB_data + j;
-		j += MAX_READ_CYCLE;
-		readA[i].qual2 = readA_data + j;
-		readB[i].qual2 = readB_data + j;
-		j += MAX_READ_CYCLE;
-	}
-
+	CPEREAD *readA, *readB;
+	register char *readA_data, *readB_data;
 	CPEREAD *workingReads, *loadingReads, *swapReads;
-
 	ktrim_stat kstat;
-	kstat.dropped	   = new unsigned int [ kp.thread ];
-	kstat.real_adapter = new unsigned int [ kp.thread ];
-	kstat.tail_adapter = new unsigned int [ kp.thread ];
-	kstat.dimer        = new unsigned int [ kp.thread ];
-
-	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
-	writebuffer.buffer1  = new char * [ kp.thread ];
-	writebuffer.buffer2  = new char * [ kp.thread ];
-	writebuffer.b1stored = new unsigned int	[ kp.thread ];
-	writebuffer.b2stored = new unsigned int [ kp.thread ];
-
-	for(unsigned int i=0; i!=kp.thread; ++i) {
-		writebuffer.buffer1[i]  = new char[ BUFFER_SIZE_PER_BATCH_READ ];
-		writebuffer.buffer2[i]  = new char[ BUFFER_SIZE_PER_BATCH_READ ];
-		writebuffer.b1stored[i] = 0;
-		writebuffer.b2stored[i] = 0;
-
-		kstat.dropped[i] = 0;
-		kstat.real_adapter[i] = 0;
-		kstat.tail_adapter[i] = 0;
-		kstat.dimer[i] = 0;
-	}
-
-// deal with multiple input files
+	string fileName;
 	vector<string> R1s, R2s;
-	extractFileNames( kp.FASTQ1, R1s );
-	extractFileNames( kp.FASTQ2, R2s );
+	FILE *fout1, *fout2;
+	unsigned int totalFiles;
 
-	if( R1s.size() != R2s.size() ) {
-		fprintf( stderr, "\033[1;31mError: Read1 and Read2 do not contain equal sized files!\033[0m\n" );
-		return 110;
+// now I use 2 trheads for init
+// prepare memory and file
+	omp_set_num_threads( 2 );
+	#pragma omp parallel
+	{
+		unsigned int tn = omp_get_thread_num();
+
+		if( tn == 0 ) {
+			readA = new CPEREAD[ READS_PER_BATCH ];
+			readB = new CPEREAD[ READS_PER_BATCH ];
+			readA_data = new char[ MEM_PE_READSET ];
+			readB_data = new char[ MEM_PE_READSET ];
+
+			for( register int i=0, j=0; i!=READS_PER_BATCH; ++i ) {
+				readA[i].id1   = readA_data + j;
+				readB[i].id1   = readB_data + j;
+				j += MAX_READ_ID;
+				readA[i].seq1  = readA_data + j;
+				readB[i].seq1  = readB_data + j;
+				j += MAX_READ_CYCLE;
+				readA[i].qual1 = readA_data + j;
+				readB[i].qual1 = readB_data + j;
+				j += MAX_READ_CYCLE;
+
+				readA[i].id2   = readA_data + j;
+				readB[i].id2   = readB_data + j;
+				j += MAX_READ_ID;
+				readA[i].seq2  = readA_data + j;
+				readB[i].seq2  = readB_data + j;
+				j += MAX_READ_CYCLE;
+				readA[i].qual2 = readA_data + j;
+				readB[i].qual2 = readB_data + j;
+				j += MAX_READ_CYCLE;
+			}
+		} else {
+			init_kstat_wrbuffer( kstat, writebuffer, kp.thread );
+
+			// deal with multiple input files
+			extractFileNames( kp.FASTQ1, R1s );
+			extractFileNames( kp.FASTQ2, R2s );
+
+			if( R1s.size() != R2s.size() ) {
+				fprintf( stderr, "\033[1;31mError: Read1 and Read2 do not contain equal sized files!\033[0m\n" );
+				exit(110);
+			}
+			totalFiles = R1s.size();
+			//cout << "\033[1;34mINFO: " << totalFiles << " paired fastq files will be loaded.\033[0m\n";
+
+			fileName = kp.outpre;
+			fileName += ".read1.fq";
+			fout1 = fopen( fileName.c_str(), "wt" );
+			fileName[ fileName.size()-4 ] = '2';	// read1 -> read2
+			fout2 = fopen( fileName.c_str(), "wt" );
+			if( fout1==NULL || fout2==NULL ) {
+				fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
+				fclose( fout1 );
+				fclose( fout2 );
+				exit(103);
+			}
+		}
 	}
-	unsigned int totalFiles = R1s.size();
-	//cout << "\033[1;34mINFO: " << totalFiles << " paired fastq files will be loaded.\033[0m\n";
 
-	string fileName = kp.outpre;
-	fileName += ".read1.fq";
-	FILE *fout1 = fopen( fileName.c_str(), "wt" );
-	fileName[ fileName.size()-4 ] = '2';	// read1 -> read2
-	FILE *fout2 = fopen( fileName.c_str(), "wt" );
-	if( fout1==NULL || fout2==NULL ) {
-		fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
-		fclose( fout1 );
-		fclose( fout2 );
-		return 103;
-	}
-
+// start analysis
 	register unsigned int line = 0;
-	unsigned int threadCNT = kp.thread - 1;
 	for( unsigned int fileCnt=0; fileCnt!=totalFiles; ++ fileCnt ) {
 		bool file_is_gz = false;
 		FILE *fq1, *fq2;
@@ -297,21 +325,35 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 
 		unsigned int loaded;
 		bool metEOF;
-		if( file_is_gz ) {
-			loaded = load_batch_data_PE_GZ( gfp1, gfp2, readA, READS_PER_BATCH );
-			metEOF = gzeof( gfp1 );
-		} else {
-			loaded = load_batch_data_PE_C( fq1, fq2, readA, READS_PER_BATCH );
-			metEOF = feof( fq1 );
+		omp_set_num_threads( 2 );
+		#pragma omp parallel
+		{
+			unsigned int tn = omp_get_thread_num();
+			if( tn == 0 ) {
+				if( file_is_gz ) {
+					loaded = load_batch_data_PE_GZ( gfp1, readA, READS_PER_BATCH, true );
+					metEOF = gzeof( gfp1 );
+				} else {
+					loaded = load_batch_data_PE_C( fq1, readA, READS_PER_BATCH, true );
+					metEOF = feof( fq1 );
+				}
+			} else {
+				if( file_is_gz ) {
+					loaded = load_batch_data_PE_GZ( gfp2, readA, READS_PER_BATCH, false );
+				} else {
+					loaded = load_batch_data_PE_C( fq2, readA, READS_PER_BATCH, false );
+				}
+			}
 		}
 		if( loaded == 0 ) break;
 
 		loadingReads = readB;
 		workingReads = readA;
 		bool nextBatch = true;
-		unsigned int threadLoaded;
+		unsigned int threadLoaded, threadLoaded2;
 		unsigned int NumWkThreads;
 		while( nextBatch ) {
+//			cerr << "Working on " << loaded << " reads\n";
 			// start parallalization
 			omp_set_num_threads( kp.thread );
 			#pragma omp parallel
@@ -328,22 +370,29 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 					unsigned int end   = loaded * (tn+1) / kp.thread;
 					workingThread_PE_C( tn, start, end, workingReads, &kstat, &writebuffer, kp );
 					nextBatch = false;
-				} else {	// use 1 thread to load files, others for trimming
-					NumWkThreads = threadCNT;
-					if( tn == threadCNT ) {
+				} else {	// use 2 thread to load files, others for trimming
+					NumWkThreads = kp.thread - 2;
+					if( tn == kp.thread - 1 ) {
 						if( file_is_gz ) {
-							threadLoaded = load_batch_data_PE_GZ( gfp1, gfp2, loadingReads, READS_PER_BATCH );
+							threadLoaded = load_batch_data_PE_GZ( gfp1, loadingReads, READS_PER_BATCH, true );
 							metEOF = gzeof( gfp1 );
 						} else {
-							threadLoaded = load_batch_data_PE_C( fq1, fq2, loadingReads, READS_PER_BATCH );
+							threadLoaded = load_batch_data_PE_C( fq1, loadingReads, READS_PER_BATCH, true );
 							metEOF = feof( fq1 );
 						}
-
+//		cerr << "R1 loaded " << threadLoaded << ", pos=" << gztell(gfp2) << ", EOF=" << gzeof( gfp1 ) << "\n";
 						nextBatch = (threadLoaded!=0);
 				//cerr << "Loading thread: " << threadLoaded << ", " << metEOF << ", " << nextBatch << '\n';
+					} else if ( tn == kp.thread - 2 ) {
+						if( file_is_gz ) {
+							threadLoaded2 = load_batch_data_PE_GZ( gfp2, loadingReads, READS_PER_BATCH, false );
+						} else {
+							threadLoaded2 = load_batch_data_PE_C( fq2, loadingReads, READS_PER_BATCH, false );
+						}
+//		cerr << "R2 loaded " << threadLoaded2 << ", pos=" << gztell(gfp2) << ", EOF=" << gzeof( gfp2 )<< "\n";
 					} else {
-						unsigned int start = loaded * tn / threadCNT;
-						unsigned int end   = loaded * (tn+1) / threadCNT;
+						unsigned int start = loaded * tn / NumWkThreads;
+						unsigned int end   = loaded * (tn+1) / NumWkThreads;
 						workingThread_PE_C( tn, start, end, workingReads, &kstat, &writebuffer, kp );
 					}
 				}
@@ -358,6 +407,13 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 			for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
 				fwrite( writebuffer.buffer2[ii], sizeof(char), writebuffer.b2stored[ii], fout2 );
 			}
+			// check whether the read-loading is correct
+			if( threadLoaded != threadLoaded2 ) {
+				cerr << "ERROR: unequal read number for read1 (" << threadLoaded
+					 << ") and read2 (" << threadLoaded2 << ")!\n";
+				exit(1);
+			}
+
 			line += loaded;
 			loaded = threadLoaded;
 			// swap workingReads and loadingReads for next loop
@@ -365,7 +421,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 			loadingReads = workingReads;
 			workingReads = swapReads;
 
-//			cerr << '\r' << line << " reads loaded";
+//			cerr << '\r' << line << " reads loaded\n";
 //			cerr << line << " reads loaded, metEOF=" << metEOF << ", next=" << nextBatch << "\n";
 		}
 
@@ -433,7 +489,7 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 //	cin.tie( NULL );
 
 	CPEREAD *read = new CPEREAD[ READS_PER_BATCH_ST ];
-	register char *read_data = new char[ MEM_PE_READSET ];
+	register char *read_data = new char[ MEM_PE_READSET_ST ];
 	
 	for( register int i=0, j=0; i!=READS_PER_BATCH; ++i ) {
 		read[i].id1   = read_data + j;
@@ -531,13 +587,11 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 		while( true ) {
 			// get fastq reads
 			unsigned int loaded;
-
 			if( file_is_gz ) {
-				loaded = load_batch_data_PE_GZ( gfp1, gfp2, read, READS_PER_BATCH_ST );
+				loaded = load_batch_data_PE_both_GZ( gfp1, gfp2, read, READS_PER_BATCH_ST );
 			} else {
-				loaded = load_batch_data_PE_C( fq1, fq2, read, READS_PER_BATCH_ST );
+				loaded = load_batch_data_PE_both_C( fq1, fq2, read, READS_PER_BATCH_ST );
 			}
-
 			if( loaded == 0 )
 				break;
 			
@@ -587,6 +641,255 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 
 	delete [] read;
 	delete [] read_data;
+
+	return 0;
+}
+
+
+int process_two_thread_PE_C( const ktrim_param &kp ) {
+	// IO speed-up
+	ios::sync_with_stdio( false );
+//	cin.tie( NULL );
+
+	// in this version, two data containers are used and auto-swapped for working and loading data
+	CPEREAD *readA, *readB;
+	register char *readA_data, *readB_data;
+	CPEREAD *workingReads, *loadingReads, *swapReads;
+	ktrim_stat kstat;
+	writeBuffer writebuffer;
+	string fileName;
+	vector<string> R1s, R2s;
+	FILE *fout1, *fout2;
+	unsigned int totalFiles;
+
+// now I use 2 trheads for init
+// prepare memory and file
+	omp_set_num_threads( 2 );
+	#pragma omp parallel
+	{
+		unsigned int tn = omp_get_thread_num();
+
+		if( tn == 0 ) {
+			readA = new CPEREAD[ READS_PER_BATCH ];
+			readB = new CPEREAD[ READS_PER_BATCH ];
+			readA_data = new char[ MEM_PE_READSET ];
+			readB_data = new char[ MEM_PE_READSET ];
+
+			for( register int i=0, j=0; i!=READS_PER_BATCH; ++i ) {
+				readA[i].id1   = readA_data + j;
+				readB[i].id1   = readB_data + j;
+				j += MAX_READ_ID;
+				readA[i].seq1  = readA_data + j;
+				readB[i].seq1  = readB_data + j;
+				j += MAX_READ_CYCLE;
+				readA[i].qual1 = readA_data + j;
+				readB[i].qual1 = readB_data + j;
+				j += MAX_READ_CYCLE;
+
+				readA[i].id2   = readA_data + j;
+				readB[i].id2   = readB_data + j;
+				j += MAX_READ_ID;
+				readA[i].seq2  = readA_data + j;
+				readB[i].seq2  = readB_data + j;
+				j += MAX_READ_CYCLE;
+				readA[i].qual2 = readA_data + j;
+				readB[i].qual2 = readB_data + j;
+				j += MAX_READ_CYCLE;
+			}
+		} else {
+			init_kstat_wrbuffer( kstat, writebuffer, kp.thread );
+
+			// deal with multiple input files
+			extractFileNames( kp.FASTQ1, R1s );
+			extractFileNames( kp.FASTQ2, R2s );
+
+			if( R1s.size() != R2s.size() ) {
+				fprintf( stderr, "\033[1;31mError: Read1 and Read2 do not contain equal sized files!\033[0m\n" );
+				exit(110);
+			}
+			totalFiles = R1s.size();
+			//cout << "\033[1;34mINFO: " << totalFiles << " paired fastq files will be loaded.\033[0m\n";
+
+			fileName = kp.outpre;
+			fileName += ".read1.fq";
+			fout1 = fopen( fileName.c_str(), "wt" );
+			fileName[ fileName.size()-4 ] = '2';	// read1 -> read2
+			fout2 = fopen( fileName.c_str(), "wt" );
+			if( fout1==NULL || fout2==NULL ) {
+				fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
+				fclose( fout1 );
+				fclose( fout2 );
+				exit(103);
+			}
+		}
+	}
+
+	register unsigned int line = 0;
+	for( unsigned int fileCnt=0; fileCnt!=totalFiles; ++ fileCnt ) {
+		bool file_is_gz = false;
+		FILE *fq1, *fq2;
+		gzFile gfp1, gfp2;
+		register unsigned int i = R1s[fileCnt].size() - 3;
+		register const char * p = R1s[fileCnt].c_str();
+		register const char * q = R2s[fileCnt].c_str();
+		if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ) {
+			file_is_gz = true;
+			gfp1 = gzopen( p, "r" );
+			gfp2 = gzopen( q, "r" );
+			if( gfp1==NULL || gfp2==NULL ) {
+				fprintf( stderr, "\033[1;31mError: open fastq file failed!\033[0m\n" );
+				fclose( fout1 );
+				fclose( fout2 );
+				return 104;
+			}
+		} else {
+			fq1 = fopen( p, "rt" );
+			fq2 = fopen( q, "rt" );
+			if( fq1==NULL || fq2==NULL ) {
+				fprintf( stderr, "\033[1;31mError: open fastq file failed!\033[0m\n" );
+				fclose( fout1 );
+				fclose( fout2 );
+				return 104;
+			}
+		}
+//		fprintf( stderr, "Loading files:\nRead1: %s\nRead2: %s\n", p, q );
+
+		// initialization
+		// get first batch of fastq reads
+
+		// PUT NEW CODES HERE
+		unsigned int loaded;
+		bool metEOF;
+		omp_set_num_threads( 2 );
+		#pragma omp parallel
+		{
+			unsigned int tn = omp_get_thread_num();
+			if( tn == 0 ) {
+				if( file_is_gz ) {
+					loaded = load_batch_data_PE_GZ( gfp1, readA, READS_PER_BATCH, true );
+					metEOF = gzeof( gfp1 );
+				} else {
+					loaded = load_batch_data_PE_C( fq1, readA, READS_PER_BATCH, true );
+					metEOF = feof( fq1 );
+				}
+			} else {
+				if( file_is_gz ) {
+					loaded = load_batch_data_PE_GZ( gfp2, readA, READS_PER_BATCH, false );
+				} else {
+					loaded = load_batch_data_PE_C( fq2, readA, READS_PER_BATCH, false );
+				}
+			}
+		}
+		if( loaded == 0 ) break;
+
+		loadingReads = readB;
+		workingReads = readA;
+		bool nextBatch = true;
+		unsigned int threadLoaded;
+		unsigned int NumWkThreads;
+		while( nextBatch ) {
+			// start parallalization
+			omp_set_num_threads( 2 );
+			#pragma omp parallel
+			{
+				unsigned int tn = omp_get_thread_num();
+				// if EOF is met, then all threads are used for analysis
+				// otherwise 1 thread will do data loading
+				if( metEOF ) {
+					NumWkThreads = 2;
+					unsigned int start = loaded * tn / 2;
+					unsigned int end   = loaded * (tn+1) / 2;
+					workingThread_PE_C( tn, start, end, workingReads, &kstat, &writebuffer, kp );
+					nextBatch = false;
+				} else {	// use 1 thread to load files, others for trimming
+					NumWkThreads = 1;
+					if( tn == 1 ) {
+						if( file_is_gz ) {
+							threadLoaded = load_batch_data_PE_both_GZ( gfp1, gfp2, loadingReads, READS_PER_BATCH );
+							metEOF = gzeof( gfp1 );
+						} else {
+							threadLoaded = load_batch_data_PE_both_C( fq1, fq2, loadingReads, READS_PER_BATCH );
+							metEOF = feof( fq1 );
+						}
+
+						nextBatch = (threadLoaded!=0);
+				//cerr << "Loading thread: " << threadLoaded << ", " << metEOF << ", " << nextBatch << '\n';
+					} else {
+						workingThread_PE_C( tn, 0, loaded, workingReads, &kstat, &writebuffer, kp );
+					}
+				}
+			} // parallel body
+			// write output and update fastq statistics
+			for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
+				fwrite( writebuffer.buffer1[ii], sizeof(char), writebuffer.b1stored[ii], fout1 );
+			}
+			for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
+				fwrite( writebuffer.buffer2[ii], sizeof(char), writebuffer.b2stored[ii], fout2 );
+			}
+			line += loaded;
+			loaded = threadLoaded;
+			// swap workingReads and loadingReads for next loop
+			swapReads	 = loadingReads;
+			loadingReads = workingReads;
+			workingReads = swapReads;
+
+//			cerr << '\r' << line << " reads loaded";
+//			cerr << line << " reads loaded, metEOF=" << metEOF << ", next=" << nextBatch << "\n";
+		}
+
+		if( file_is_gz ) {
+			gzclose( gfp1 );
+			gzclose( gfp2 );
+		} else {
+			fclose( fq1 );
+			fclose( fq2 );
+		}
+		cerr << '\n';
+	} // all input files are loaded
+
+	fclose( fout1 );
+	fclose( fout2 );
+	//cerr << "\rDone: " << line << " lines processed.\n";
+
+	// write trim.log
+	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0;
+	for( unsigned int i=0; i!=kp.thread; ++i ) {
+		dropped_all += kstat.dropped[i];
+		real_all  += kstat.real_adapter[i];
+		tail_all  += kstat.tail_adapter[i];
+		dimer_all += kstat.dimer[i];
+	}
+	fileName = kp.outpre;
+	fileName += ".trim.log";
+	ofstream fout( fileName.c_str() );
+	if( fout.fail() ) { 
+		fprintf( stderr, "\033[1;34mError: cannot write log file!\033[0m\n" );
+		return 105;
+	}
+	fout << "Total\t"    << line		<< '\n'
+		 << "Dropped\t"  << dropped_all << '\n'
+		 << "Aadaptor\t" << real_all	<< '\n'
+		 << "TailHit\t"  << tail_all	<< '\n'
+		 << "Dimer\t"    << dimer_all	<< '\n';
+	fout.close();
+
+	//free memory
+	for(unsigned int i=0; i!=kp.thread; ++i) {
+		delete writebuffer.buffer1[i];
+		delete writebuffer.buffer2[i];
+	}
+	delete [] writebuffer.buffer1;
+	delete [] writebuffer.buffer2;
+
+	delete [] kstat.dropped;
+	delete [] kstat.real_adapter;
+	delete [] kstat.tail_adapter;
+	delete [] kstat.dimer;
+
+	delete [] readA;
+	delete [] readB;
+	delete [] readA_data;
+	delete [] readB_data;
 
 	return 0;
 }

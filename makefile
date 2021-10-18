@@ -4,7 +4,7 @@ bin/ktrim: src/ktrim.cpp src/common.h src/util.h src/param_handler.h src/pe_hand
 
 install: bin/ktrim	# requires root
 	@echo Install Ktrim for all users
-	@cp bin/ktrim /usr/local/bin
+	@cp bin/ktrim /usr/bin/
 
 clean:
 	rm -f bin/ktrim

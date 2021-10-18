@@ -331,7 +331,7 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 //	cin.tie( NULL );
 
 	CSEREAD *read = new CSEREAD[ READS_PER_BATCH_ST ];
-	register char *read_data = new char[ MEM_SE_READSET ];
+	register char *read_data = new char[ MEM_SE_READSET_ST ];
 
 	for( register int i=0, j=0; i!=READS_PER_BATCH; ++i ) {
 		read[i].id   = read_data + j;

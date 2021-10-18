@@ -101,7 +101,7 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 		}
 	} else {
 		if( kp.FASTQ1 == NULL ) {
-			cerr << "\033[1;31mError: No read 1 file specified (both '-1' and '-U' are not set)!\033[0m\n";
+			cerr << "\033[1;31mError: No input file specified (both '-1' and '-U' are not set)!\033[0m\n";
 			usage();
 			return 2;
 		}
@@ -225,7 +225,7 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 	return 0;
 }
 
-void usage( ) {
+void usage() {
 cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o out.prefix\033[0m\n\n"
 	 << "Author : Kun Sun (sunkun@szbl.ac.cn)\n"
 	 << "Version: " << VERSION << "\n\n"
@@ -234,52 +234,48 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o ou
 
 	 << "Compulsory parameters:\n\n"
 
-	 << "  -1/-U Read1.fq  Specify the path to the files containing read 1\n"
-	 << "                  If your data is Paired-end, use '-1' and specify read 2 files using '-2' option\n"
-	 << "                  Note that if '-U' is used, specification of '-2' is invalid\n"
-	 << "                  If you have multiple files for your sample, use '"
-							<< FILE_SEPARATOR << "' to separate them\n"
-     << "                  Note that Gzip-compressed files are supported from version 1.2.0\n\n"
+	 << "  -1/-U R1.fq[.gz]  Specify the path to the files containing read 1\n"
+	 << "                    If your data is Paired-end, use '-1' and specify read 2 files using '-2' option\n"
+	 << "                    Note that if '-U' is used, specification of '-2' is invalid\n"
+	 << "                    If you have multiple files for your sample, use '"
+								<< FILE_SEPARATOR << "' to separate them\n"
+     << "                    Note that Gzip-compressed files are supported from version 1.2\n\n"
 
-	 << "  -o out.prefix   Specify the prefix of the output files\n"
-	 << "                  Note that output files include trimmed reads in FASTQ format and statistics\n\n"
+	 << "  -o out.prefix     Specify the prefix of the output files\n"
+	 << "                    Note that output files include trimmed reads in FASTQ format and statistics\n\n"
 
 	 << "Optional parameters:\n\n"
 
-	 << "  -2 Read2.fq     Specify the path to the file containing read 2\n"
-	 << "                  Use this parameter if your data is generated in paired-end mode\n"
-	 << "                  If you have multiple files for your sample, use '"
-							<< FILE_SEPARATOR << "' to separate them\n"
-	 << "                  and make sure that all the files are well paired in '-1' and '-2' options\n\n"
+	 << "  -2 R2.fq[.gz]     Specify the path to the file containing read 2\n"
+	 << "                    Use this parameter if your data is generated in paired-end mode\n"
+	 << "                    If you have multiple files for your sample, use '"
+								<< FILE_SEPARATOR << "' to separate them\n"
+	 << "                    and make sure that all the files are well paired in '-1' and '-2' options\n\n"
 
-	 << "  -t threads      Specify how many threads should be used (default: 1, single-thread)\n"
-	 << "                  You can set '-t' to 0 to use all threads (automatically detected)\n\n"
+	 << "  -t threads        Specify how many threads should be used (default: 1, single-thread)\n"
+	 << "                    You can set '-t' to 0 to use all threads (automatically detected)\n\n"
 
-	 << "  -p phred-base   Specify the baseline of the phred score (default: 33)\n"
-	 << "  -q score        The minimum quality score to keep the cycle (default: 20)\n"
-	 << "                  Note that 20 means 1% error rate, 30 means 0.1% error rate in Phred\n\n"
-	 << "  -w window       Set the window size for quality check (default: 5)\n"
-	 << "                  Ktrim will stop when all the bases in a consecutive window pass the quality threshold\n\n"
+	 << "  -p phred-base     Specify the baseline of the phred score (default: 33)\n"
+	 << "  -q score          The minimum quality score to keep the cycle (default: 20)\n"
+	 << "                    Note that 20 means 1% error rate, 30 means 0.1% error rate in Phred\n\n"
+	 << "  -w window         Set the window size for quality check (default: 5)\n"
+	 << "                    Ktrim stops when all bases in a consecutive window pass the quality threshold\n\n"
 
-	 << "                  Phred 33 ('!') and Phred 64 ('@') are the most widely used scoring system\n"
-	 << "                  Quality scores start from 35 ('#') in the FASTQ files is also common\n\n"
+	 << "  -s size           Minimum read size to be kept after trimming (default: 36; must be larger than 10)\n\n"
 
-	 << "  -s size         Minimum read size to be kept after trimming (default: 36; must be larger than 10)\n\n"
+	 << "  -k kit            Specify the sequencing kit to use built-in adapters\n"
+	 << "                    Currently supports 'Illumina' (default), 'Nextera', and 'BGI'\n"
+	 << "  -a sequence       Specify the adapter sequence in read 1\n"
+	 << "  -b sequence       Specify the adapter sequence in read 2\n"
+	 << "                    If '-a' is set while '-b' is not, I will assume that read 1 and 2 use same adapter\n"
+	 << "                    Note that '-k' option has a higher priority (when set, '-a'/'-b' will be ignored)\n\n"
+	 << "  -m proportion     Set the proportion of mismatches allowed during index and sequence comparison\n"
+	 << "                    Default: 0.125 (i.e., 1/8 of compared base pairs)\n\n"
 
-	 << "  -k kit          Specify the sequencing kit to use built-in adapters\n"
-	 << "                  Currently supports 'Illumina' (default), 'Nextera', 'Transposase' and 'BGI'\n"
-	 << "  -a sequence     Specify the adapter sequence in read 1\n"
-	 << "  -b sequence     Specify the adapter sequence in read 2\n"
-	 << "                  If '-a' is set while '-b' is not, I will assume that read 1 and 2 use same adapter\n"
-	 << "                  Note that '-k' option has a higher priority (when set, '-a'/'-b' will be ignored)\n\n"
-	 << "  -m proportion   Set the proportion of mismatches allowed during index and sequence comparison\n"
-	 << "                  Default: 0.125 (i.e., 1/8 of compared base pairs)\n\n"
-
-	 << "  -h/--help       Show this help information and quit\n"
-	 << "  -v/--version    Show the software version and quit\n\n"
+	 << "  -h                Show this help information and quit\n"
+	 << "  -v                Show the software version and quit\n\n"
 
 	 << "Please refer to README.md file for more information (e.g., setting adapters).\n\n"
-	 
 	 << "\033[1;34mKtrim: extra-fast and accurate adapter- and quality-trimmer.\033[0m\n\n";
 }
 
