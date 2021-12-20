@@ -32,6 +32,7 @@ bool inline is_revcomp( const char a, const char b ) {
 		case 'T': return b=='A';
 		default : return false;
 	}
+	return true;
 }
 
 void init_kstat_wrbuffer( ktrim_stat &kstat, writeBuffer &writebuffer, unsigned int nthread ) {
@@ -173,9 +174,10 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 			}
 		} else {	// seed not found, now check the tail 2 or 1, if perfect match, drop these 2
 			i = wkr->size - 2;
-			const char *p = wkr->seq1;
-			const char *q = wkr->seq2;
-			if( p[i]==kp.adapter_r1[0] && p[i+1]==kp.adapter_r1[1] &&
+			register const char *p = wkr->seq1;
+			register const char *q = wkr->seq2;
+			//Note: 1 mismatch is allowed in tail-checking
+			/*if( p[i]==kp.adapter_r1[0] && p[i+1]==kp.adapter_r1[1] &&
 					q[i]==kp.adapter_r2[0] && q[i+1]==kp.adapter_r2[1] ) {	// a possible hit
 				// if it is a real adapter, then Read1 and Read2 should be complimentary
 				// in real data, the heading 5 bp are of poor quality, therefoe we test the 6th, 7th
@@ -186,10 +188,24 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 						continue;
 					}
 					CPEREAD_resize( wkr, i );
+				}*/
+			register unsigned int mismatches = 0;
+			if( p[i]   != kp.adapter_r1[0] ) mismatches ++;
+			if( p[i+1] != kp.adapter_r1[1] ) mismatches ++;
+			if( q[i]   != kp.adapter_r2[0] ) mismatches ++;
+			if( q[i+1] != kp.adapter_r2[1] ) mismatches ++;
+			if( ! is_revcomp(p[5], q[i-6]) ) mismatches ++;
+			if( ! is_revcomp(q[5], p[i-6]) ) mismatches ++;
+			if( mismatches <= 1 ) {	// tail is good
+				++ kstat->tail_adapter[tn];
+				if( i < kp.min_length ) {
+					++ kstat->dropped[tn];
+					continue;
 				}
+				CPEREAD_resize( wkr, i );
 			} else {	// tail 2 is not good, check tail 1
 				++ i;
-				if( p[i]==kp.adapter_r1[0] && q[i]==kp.adapter_r2[0] ) {
+				/*if( p[i]==kp.adapter_r1[0] && q[i]==kp.adapter_r2[0] ) {
 					if( is_revcomp(p[5], q[i-6]) && is_revcomp(q[5], p[i-6]) && 
 						is_revcomp(p[6], q[i-7]) && is_revcomp(q[6], p[i-7]) ) {
 						++ kstat->tail_adapter[tn];
@@ -199,6 +215,22 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 						}
 						CPEREAD_resize( wkr, i );
 					}
+				}*/
+				mismatches = 0;
+				if( p[i] != kp.adapter_r1[0] ) mismatches ++;
+				if( q[i] != kp.adapter_r2[0] ) mismatches ++;
+				if( ! is_revcomp(p[5], q[i-6]) ) mismatches ++;
+				if( ! is_revcomp(q[5], p[i-6]) ) mismatches ++;
+				if( ! is_revcomp(p[6], q[i-7]) ) mismatches ++;
+				if( ! is_revcomp(q[6], p[i-7]) ) mismatches ++;
+
+				if( mismatches <= 1 ) {
+					++ kstat->tail_adapter[tn];
+					if( i < kp.min_length ) {
+						++ kstat->dropped[tn];
+						continue;
+					}
+					CPEREAD_resize( wkr, i );
 				}
 			}
 		}
@@ -401,11 +433,20 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 //				fprintf( stderr, "Thread %d, runtime %.1f\n", tn, duration );
 			} // parallel body
 			// write output and update fastq statistics
-			for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
-				fwrite( writebuffer.buffer1[ii], sizeof(char), writebuffer.b1stored[ii], fout1 );
-			}
-			for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
-				fwrite( writebuffer.buffer2[ii], sizeof(char), writebuffer.b2stored[ii], fout2 );
+			// I cannot write fastq in each thread because it may cause unpaired reads
+			omp_set_num_threads( 2 );
+			#pragma omp parallel
+			{
+				unsigned int tn = omp_get_thread_num();
+				if( tn == 0 ) {
+					for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
+						fwrite( writebuffer.buffer1[ii], sizeof(char), writebuffer.b1stored[ii], fout1 );
+					}
+				} else {
+					for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
+						fwrite( writebuffer.buffer2[ii], sizeof(char), writebuffer.b2stored[ii], fout2 );
+					}
+				}
 			}
 			// check whether the read-loading is correct
 			if( threadLoaded != threadLoaded2 ) {
@@ -423,7 +464,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 
 //			cerr << '\r' << line << " reads loaded\n";
 //			cerr << line << " reads loaded, metEOF=" << metEOF << ", next=" << nextBatch << "\n";
-		}
+		}//process 1 file
 
 		if( file_is_gz ) {
 			gzclose( gfp1 );
@@ -844,7 +885,7 @@ int process_two_thread_PE_C( const ktrim_param &kp ) {
 			fclose( fq1 );
 			fclose( fq2 );
 		}
-		cerr << '\n';
+//		cerr << '\n';
 	} // all input files are loaded
 
 	fclose( fout1 );

@@ -269,11 +269,13 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o ou
 	 << "  -b sequence       Specify the adapter sequence in read 2\n"
 	 << "                    If '-a' is set while '-b' is not, I will assume that read 1 and 2 use same adapter\n"
 	 << "                    Note that '-k' option has a higher priority (when set, '-a'/'-b' will be ignored)\n\n"
-	 << "  -m proportion     Set the proportion of mismatches allowed during index and sequence comparison\n"
-	 << "                    Default: 0.125 (i.e., 1/8 of compared base pairs)\n\n"
 
-	 << "  -h                Show this help information and quit\n"
-	 << "  -v                Show the software version and quit\n\n"
+	 << "  -m proportion     Set the proportion of mismatches allowed during index and sequence comparison\n"
+	 << "                    Default: 0.125 (i.e., 1/8 of compared base pairs)\n"
+	 << "                    Please use this option with caution as it affects the accuracy a lot\n\n"
+
+	 << "  -h                Show this help information and quit (exit code=0)\n"
+	 << "  -v                Show the software version and quit (exit code=0)\n\n"
 
 	 << "Please refer to README.md file for more information (e.g., setting adapters).\n\n"
 	 << "\033[1;34mKtrim: extra-fast and accurate adapter- and quality-trimmer.\033[0m\n\n";

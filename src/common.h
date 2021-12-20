@@ -28,8 +28,9 @@
 #include <vector>
 using namespace std;
 
-const char * VERSION = "1.4.0 (Oct 2021)";
+const char * VERSION = "1.4.1 (Dec 2021)";
 
+// 1.4.1, now we use 2 threads for reading and 2 threads more writting, ~10% faster
 // 1.4.0, now we use 2 threads for reading files in PE mode, ~33% faster
 // 1.3.1 fixed the bug in dimers when working on SE data processing using single-thread 
 // 1.2.2 fixed the bug when "-o" is NOT present but the program does not quit

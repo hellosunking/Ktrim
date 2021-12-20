@@ -49,7 +49,6 @@ void workingThread_SE_C( unsigned int tn, unsigned int start, unsigned int end, 
 							ktrim_stat * kstat, writeBuffer * writebuffer, const ktrim_param & kp ) {
 
 //	fprintf( stderr, "=== working thread %d: %d - %d\n", tn, start, end ), "\n";
-
 	writebuffer->b1stored[tn] = 0;
 
 	register int i, j;
@@ -227,7 +226,6 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		workingReads = readA;
 		bool nextBatch = true;
 		unsigned int threadLoaded;
-		unsigned int NumWkThreads;
 		while( nextBatch ) {
 			// start parallalization
 			omp_set_num_threads( kp.thread );
@@ -237,13 +235,12 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 				// if EOF is met, then all threads are used for analysis
 				// otherwise 1 thread will do data loading
 				if( metEOF ) {
-					NumWkThreads = kp.thread;
 					unsigned int start = loaded * tn / kp.thread;
 					unsigned int end   = loaded * (tn+1) / kp.thread;
 					workingThread_SE_C( tn, start, end, workingReads, &kstat, &writebuffer, kp );
+					fwrite( writebuffer.buffer1[tn], sizeof(char), writebuffer.b1stored[tn], fout1 );
 					nextBatch = false;
 				} else {	// use 1 thread to load file, others for trimming
-					NumWkThreads = threadCNT;
 					if( tn == threadCNT ) {
 						if( file_is_gz ) {
 							threadLoaded = load_batch_data_SE_GZ( gfp, loadingReads, READS_PER_BATCH );
@@ -259,6 +256,8 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 						unsigned int start = loaded * tn / threadCNT;
 						unsigned int end   = loaded * (tn+1) / threadCNT;
 						workingThread_SE_C( tn, start, end, workingReads, &kstat, &writebuffer, kp );
+						// write output; fwrite is thread-safe
+						fwrite( writebuffer.buffer1[tn], sizeof(char), writebuffer.b1stored[tn], fout1 );
 					}
 				}
 			} // parallel body
@@ -266,10 +265,6 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 			swapReads	= loadingReads;
 			loadingReads = workingReads;
 			workingReads = swapReads;
-			// write output and update fastq statistics
-			for( unsigned int ii=0; ii!=NumWkThreads; ++ii ) {
-				fwrite( writebuffer.buffer1[ii], sizeof(char), writebuffer.b1stored[ii], fout1 );
-			}
 			line += loaded;
 			loaded = threadLoaded;
 			//cerr << '\r' << line << " reads loaded";
@@ -325,7 +320,6 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 }
 
 int process_single_thread_SE_C( const ktrim_param &kp ) {
-//	fprintf( stderr, "SINGLE END SINGLE_THREAD MODE ON\n" );
 	// IO speed-up
 //	ios::sync_with_stdio( false );
 //	cin.tie( NULL );

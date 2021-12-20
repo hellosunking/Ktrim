@@ -1,7 +1,7 @@
 ![Ktrim logo](https://github.com/hellosunking/hellosunking.github.io/blob/master/logos/Ktrim.png "Ktrim logo")
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
-Version 1.4.0, Oct 2021<br />
+Version 1.4.1, Dec 2021<br />
 Author: Kun Sun \(sunkun@szbl.ac.cn\)<br />
 <br />
 Distributed under the
@@ -10,10 +10,9 @@ for personal and academic usage only.<br />
 For detailed information please refer to the license files under `license` directory.
 
 ---
-## Release of version 1.4
+## Release of version 1.4.1
 The author is pleased to release version 1.4 of Ktrim. In this version, file loading procedure has been
-optimized to provide a ~50% speed-up for paired-end data processing using 4 threads. However, single-end
-data is not affected.
+optimized to provide a ~50% speed-up for paired-end data processing, and ~10% speed-up using 4 threads.
 
 ## Release of version 1.2
 The major improvements in this version are:
@@ -54,7 +53,7 @@ Call `ktrim` without any parameters to see the usage (or use '-h' option):
 Usage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o out.prefix
 
 Author : Kun Sun (sunkun@szbl.ac.cn)
-Version: 1.4.0 (Oct 2021)
+Version: 1.4.1 (Dec 2021)
 
 Ktrim is designed to perform adapter- and quality-trimming of FASTQ files.
 

@@ -1,5 +1,9 @@
 Ktrim change log
 
+v1.4.1 Dec 2021
+	* Optimize file writting, both SE/PE data have ~10% speed-up (4-threads)
+	* Allows 1 mismatch in tail-hits of PE data
+
 v1.4.0 Oct 2021
 	* Optimize file loading, PE data has a ~50% speed-up using 4-threads
 
