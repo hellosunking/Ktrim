@@ -12,7 +12,7 @@ For detailed information please refer to the license files under `license` direc
 ---
 ## Release of version 1.4.1
 The author is pleased to release version 1.4 of Ktrim. In this version, file loading procedure has been
-optimized to provide a ~50% speed-up for paired-end data processing, and ~10% speed-up using 4 threads.
+optimized to provide a ~50% speed-up for paired-end data, and ~10% speed-up for single-end data using 4 threads.
 
 ## Release of version 1.2
 The major improvements in this version are:
