@@ -1,6 +1,6 @@
 /**
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date: Jun, 2020 
+ * Date: May 2023
  * This program is part of the Ktrim package
 **/
 
@@ -31,7 +31,7 @@ void init_param( ktrim_param &kp ) {
 	kp.FASTQU = NULL;
 	kp.outpre = NULL;
 
-	kp.thread = 1;
+	kp.thread = 4;
 	kp.min_length = 36;
 	kp.phred   = 33;
 	kp.minqual = 20;
@@ -49,6 +49,7 @@ void init_param( ktrim_param &kp ) {
 	kp.adapter_index2 = NULL;
 	kp.adapter_index3 = NULL;
 
+	kp.write2stdout = false;
 	kp.use_default_mismatch = true;
 	kp.mismatch_rate = 0.125;
 }
@@ -60,6 +61,7 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 	int ch;
 	while( (ch = getopt(argc, argv, param_list) ) != -1 ) {
 		switch( ch ) {
+			case 'f': kp.filelist = optarg; break;
 			case '1': kp.FASTQ1 = optarg; break;
 			case '2': kp.FASTQ2 = optarg; break;
 			case 'U': kp.FASTQU = optarg; break;
@@ -72,7 +74,9 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 			case 'w': kp.window  = atoi(optarg); break;
 			case 'a': kp.seqA = optarg; break;
 			case 'b': kp.seqB = optarg; break;
+
 			case 'm': kp.use_default_mismatch = false; kp.mismatch_rate = atof(optarg); break;
+			case 'c': kp.write2stdout = true; break;
 
 			case 'h': usage(); return 100;
 			case 'v': cout << VERSION << '\n'; return 100;
@@ -93,20 +97,40 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 	}
 
 	// check compulsory paramaters
-	if( kp.FASTQU != NULL ) {   // single-end
-		if( kp.FASTQ1!=NULL || kp.FASTQ2!=NULL ) {
-			cerr << "\033[1;31mError: '-U' is specified but you also set '-1'/'-2'!\033[0m\n";
+	if( kp.filelist == NULL ) {
+		if( kp.FASTQU != NULL ) {   // single-end
+			if( kp.FASTQ1!=NULL || kp.FASTQ2!=NULL ) {
+				cerr << "\033[1;31mError: '-U' is specified but you also set '-1'/'-2'!\033[0m\n";
+				usage();
+				return 2;
+			}
+			extractFileNames( kp.FASTQU, kp.R1s );
+			kp.paired_end_data = false;
+		} else {
+			if( kp.FASTQ1 == NULL ) {
+				cerr << "\033[1;31mError: No input file specified (both '-1' and '-U' are not set)!\033[0m\n";
+				usage();
+				return 2;
+			}
+			kp.FASTQU = kp.FASTQ1;
+			extractFileNames( kp.FASTQU, kp.R1s );
+
+			if( kp.FASTQ2 != NULL ) {
+				extractFileNames( kp.FASTQ2, kp.R2s );
+				kp.paired_end_data = true;
+			} else {
+				kp.paired_end_data = false;
+			}
+		}
+	} else {	// the -f option has a higher priority
+		if( kp.FASTQU != NULL || kp.FASTQ1!=NULL || kp.FASTQ2!=NULL ) {
+			cerr << "\033[1;31mError: '-f' is specified but you also set '-U'/'-1'/'-2'!\033[0m\n";
 			usage();
 			return 2;
 		}
-	} else {
-		if( kp.FASTQ1 == NULL ) {
-			cerr << "\033[1;31mError: No input file specified (both '-1' and '-U' are not set)!\033[0m\n";
-			usage();
-			return 2;
-		}
-		kp.FASTQU = kp.FASTQ1;
+		loadFQFileNames( kp );
 	}
+
 	if( kp.outpre == NULL ) {
 		cerr << "\033[1;31mError: No output file specified ('-o' not set)!\033[0m\n";
 		usage();
@@ -115,21 +139,21 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 	
 	// check optional parameters
 	if( kp.thread == 0 ) {
-		cerr << "Warning: thread is set to 0! I will use all threads instead.\n";
+//		cerr << "Warning: thread is set to 0! I will use all threads (atmost 8) instead.\n";
 		kp.thread = omp_get_max_threads();
-		if( kp.thread > 4 )
-			kp.thread = 4;
+		if( kp.thread > 8 )
+			kp.thread = 8;
 	}
-	if( kp.thread > 4 ) {
-		cerr << "Warning: we strongly discourage the usage of more than 4-threads.\n";
+	if( kp.thread > 8 ) {
+		cerr << "Warning: we strongly discourage the usage of more than 8 threads.\n";
 	}
 	if( kp.min_length < 10 ) {
-		cerr << "\033[1;31mError: invalid min_length! Must be a positive number larger than 10!\033[0m\n";
+		cerr << "\033[1;31mError: invalid min_length! Must be a larger than 10!\033[0m\n";
 		usage();
 		return 11;
 	}
 	if( kp.phred==0 || kp.minqual==0 || kp.window==0 ) {
-		cerr << "\033[1;31mError: invalid phred/quality/window parameter! Must be positive numbers!\033[0m\n";
+		cerr << "\033[1;31mError: invalid phred/quality/window parameters!\033[0m\n";
 		usage();
 		return 12;
 	}
@@ -222,11 +246,58 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 		}
 	}
 
+	// prepare output files
+	string fileName = kp.outpre;
+	if( kp.write2stdout ) {
+		kp.fout1 = stdout;
+		kp.fout2 = NULL;
+	} else {
+		if( kp.paired_end_data ) {
+			fileName += ".read1.fq";
+			kp.fout1 = fopen( fileName.c_str(), "wt" );
+			fileName[ fileName.size()-4 ] = '2';    // read1 -> read2
+			kp.fout2 = fopen( fileName.c_str(), "wt" );
+			if( kp.fout1 == NULL || kp.fout2 == NULL ) {
+				cerr << "\033[1;31mError: write file failed!\033[0m\n";
+				if( kp.fout1 != NULL )fclose( kp.fout1 );
+				if( kp.fout2 != NULL )fclose( kp.fout2 );
+				exit(103);
+			}
+		} else {	// single-end
+			fileName += ".read1.fq";
+			kp.fout1 = fopen( fileName.c_str(), "wt" );
+			if( kp.fout1 == NULL ) {
+				cerr << "\033[1;31mError: write file failed!\033[0m\n";
+				exit(103);
+			}
+		}
+	}
+
+	fileName = kp.outpre;
+	fileName += ".trim.log";
+	kp.flog = fopen( fileName.c_str(), "wt" );
+	if( kp.flog == NULL ) {
+		cerr << "\033[1;34mError: cannot write log file!\033[0m\n";
+		if( kp.fout1 != NULL )fclose( kp.fout1 );
+		if( kp.fout2 != NULL )fclose( kp.fout2 );
+		exit(105);
+	}
+
 	return 0;
 }
 
+void close_files( const ktrim_param &kp ) {
+	if( ! kp.write2stdout ) {
+		fclose( kp.fout1 );
+
+		if( kp.paired_end_data )
+			fclose( kp.fout2 );
+	}
+	fclose( kp.flog );
+}
+
 void usage() {
-cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o out.prefix\033[0m\n\n"
+cerr << "\n\033[1;34mUsage: Ktrim [options] -f fq.list {-1/-U Read1.fq [-2 Read2.fq ]} -o out.prefix\033[0m\n\n"
 	 << "Author : Kun Sun (sunkun@szbl.ac.cn)\n"
 	 << "Version: " << VERSION << "\n\n"
 
@@ -234,15 +305,17 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o ou
 
 	 << "Compulsory parameters:\n\n"
 
+	 << "  -f fq.list        Specify the path to a file containing path to read 1/2 fastq files\n\n"
+     << "OR you can specify the fastq files directly:\n\n"
 	 << "  -1/-U R1.fq[.gz]  Specify the path to the files containing read 1\n"
 	 << "                    If your data is Paired-end, use '-1' and specify read 2 files using '-2' option\n"
 	 << "                    Note that if '-U' is used, specification of '-2' is invalid\n"
 	 << "                    If you have multiple files for your sample, use '"
 								<< FILE_SEPARATOR << "' to separate them\n"
-     << "                    Note that Gzip-compressed files are supported from version 1.2\n\n"
+     << "                    Gzip-compressed files (with .gz suffix) are supported.\n\n"
 
 	 << "  -o out.prefix     Specify the prefix of the output files\n"
-	 << "                    Note that output files include trimmed reads in FASTQ format and statistics\n\n"
+	 << "                    Outputs include trimmed reads in FASTQ format and statistics\n\n"
 
 	 << "Optional parameters:\n\n"
 
@@ -252,16 +325,12 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o ou
 								<< FILE_SEPARATOR << "' to separate them\n"
 	 << "                    and make sure that all the files are well paired in '-1' and '-2' options\n\n"
 
-	 << "  -t threads        Specify how many threads should be used (default: 1, single-thread)\n"
-	 << "                    You can set '-t' to 0 to use all threads (automatically detected)\n\n"
-
-	 << "  -p phred-base     Specify the baseline of the phred score (default: 33)\n"
-	 << "  -q score          The minimum quality score to keep the cycle (default: 20)\n"
-	 << "                    Note that 20 means 1% error rate, 30 means 0.1% error rate in Phred\n\n"
-	 << "  -w window         Set the window size for quality check (default: 5)\n"
-	 << "                    Ktrim stops when all bases in a consecutive window pass the quality threshold\n\n"
-
+	 << "  -c                Write the trimming results to stdout (default: not set)\n"
+     << "                    Note that the interleaved fastq format will be used for paired-end data.\n"
 	 << "  -s size           Minimum read size to be kept after trimming (default: 36; must be larger than 10)\n\n"
+
+	 << "  -t threads        Specify how many threads should be used (default: 4)\n"
+	 << "                    You can set '-t' to 0 to use all threads (automatically detected)\n\n"
 
 	 << "  -k kit            Specify the sequencing kit to use built-in adapters\n"
 	 << "                    Currently supports 'Illumina' (default), 'Nextera', and 'BGI'\n"
@@ -270,6 +339,11 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o ou
 	 << "                    If '-a' is set while '-b' is not, I will assume that read 1 and 2 use same adapter\n"
 	 << "                    Note that '-k' option has a higher priority (when set, '-a'/'-b' will be ignored)\n\n"
 
+	 << "  -p phred-base     Specify the baseline of the phred score (default: 33)\n"
+	 << "  -q score          The minimum quality score to keep the cycle (default: 20)\n"
+	 << "                    Note that 20 means 1% error rate, 30 means 0.1% error rate in Phred\n\n"
+	 << "  -w window         Set the window size for quality check (default: 5)\n"
+	 << "                    Ktrim stops when all bases in a consecutive window pass the quality threshold\n\n"
 	 << "  -m proportion     Set the proportion of mismatches allowed during index and sequence comparison\n"
 	 << "                    Default: 0.125 (i.e., 1/8 of compared base pairs)\n"
 	 << "                    Please use this option with caution as it affects the accuracy a lot\n\n"

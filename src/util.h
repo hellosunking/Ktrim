@@ -7,6 +7,7 @@
 #ifndef _KTRIM_UTIL_
 #define _KTRIM_UTIL_
 
+#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -19,6 +20,7 @@
 #include <math.h>
 #include <zlib.h>
 #include "common.h"
+
 using namespace std;
 
 // extract file names
@@ -36,13 +38,100 @@ void extractFileNames( const char *str, vector<string> & Rs ) {
 		Rs.push_back( fileName );
 }
 
+void loadFQFileNames( ktrim_param & kp ) {
+	ifstream fin;
+	fin.open( kp.filelist );
+	if( fin.fail() ) {
+		cerr << "Error: load file " << kp.filelist << " failed!\n";
+		exit(10);
+	}
+
+	string line;
+	stringstream ss;
+	string fq1, fq2;
+
+	// read the first valid line, determine SE/PE data
+	int lineCnt = 0;
+	bool pe_data;
+	while( true ) {
+		getline(fin, line);
+		if( fin.eof() )break;
+
+		if( line[0] != '#' ) {	// lines starts with "#" are ignored as comments
+			ss.str( line );
+			ss.clear();
+			ss >> fq1;
+
+			if( ss.rdbuf()->in_avail() ) {
+				ss >> fq2;
+				pe_data = true;
+
+				kp.R1s.push_back( fq1 );
+				kp.R2s.push_back( fq2 );
+			} else {
+				pe_data = false;
+				kp.R1s.push_back( fq1 );
+			}
+
+			++ lineCnt;
+
+			break;
+		}
+	}
+
+	bool inconsistent = false;
+	while( true ) {
+		getline(fin, line);
+		if( fin.eof() )break;
+
+		if( line[0] == '#' ) {
+			continue;
+		}
+
+		ss.str( line );
+		ss.clear();
+		ss >> fq1;
+		
+		if( pe_data ) {
+			if( ss.rdbuf()->in_avail() ) {
+				ss >> fq2;
+				kp.R1s.push_back( fq1 );
+				kp.R2s.push_back( fq2 );
+			} else {
+				inconsistent = true;
+				break;
+			}
+		} else {
+			if( ss.rdbuf()->in_avail() ) {
+				inconsistent = true;
+				break;
+			}
+			kp.R1s.push_back( fq1 );
+		}
+
+		++ lineCnt;
+	}
+
+	fin.close();
+	if( inconsistent ) {
+		cerr << "\033[1;31mERROR: inconsistent PE/SE in '" << kp.filelist << "'!\033[0m\n";
+		exit(3);
+	}
+	if( pe_data ) {
+		if( kp.R1s.size() != kp.R2s.size() ) {
+			cerr << "\033[1;31mError: incorrect pairs in file list!\033[0m\n";
+			exit(110);
+		}
+	}
+//	cerr << "Done: " << lineCnt << " lines of " << (pe_data) ? 'P' : 'S' << "E data loaded.\n";
+	kp.paired_end_data = pe_data;
+}
+
 //load 1 batch of data, using purely C-style
 unsigned int load_batch_data_SE_C( FILE *fp, CSEREAD *loadingReads, unsigned int num ) {
 	register unsigned int loaded = 0;
-//	string unk;
 	register CSEREAD *p = loadingReads;
 	register CSEREAD *q = p + num;
-//	clock_t start = clock();
 	while( p != q ) {
 		if( fgets( p->id, MAX_READ_ID,  fp ) == NULL ) break;
 		fgets( p->seq,  MAX_READ_CYCLE, fp );
@@ -57,9 +146,6 @@ unsigned int load_batch_data_SE_C( FILE *fp, CSEREAD *loadingReads, unsigned int
 
 		++ p;
 	}
-//	clock_t end = clock();
-//	fprintf( stderr, "%.0f ", (end-start)*1000.0/CLOCKS_PER_SEC );
-
 	return p-loadingReads;
 }
 
@@ -77,9 +163,8 @@ unsigned int load_batch_data_SE_GZ( gzFile gfp, CSEREAD *loadingReads, unsigned 
 		gzgets( gfp, p->seq,  MAX_READ_CYCLE );
 		gzgets( gfp, p->qual, MAX_READ_CYCLE );	// this line is useless
 		gzgets( gfp, p->qual, MAX_READ_CYCLE );
-//		fprintf( stderr, "GZload: %s%s%s", p->id, p->seq, p->qual);
 
-		// remove the tail '\n'
+		// remove the tailing '\n'
 		i = strlen( p->seq ) - 1;
 		p->size = i;
 		p->seq[i]  = 0;
@@ -96,9 +181,6 @@ unsigned int load_batch_data_PE_C( FILE *fq, CPEREAD *loadingReads, const unsign
 	register CPEREAD *p = loadingReads;
 	register CPEREAD *q = p + num;
 	// load read1
-//	size_t read_char_num = 0;
-//	clock_t start = clock();
-
 	if( isRead1 ) {
 		while( p != q ) {
 			if( fgets( p->id1, MAX_READ_ID,  fq ) == NULL ) break;

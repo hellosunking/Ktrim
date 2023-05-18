@@ -1,6 +1,6 @@
 /**
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date:   Mar, 2021
+ * Date:   May 2023
  * This program is part of the Ktrim package
 **/
 
@@ -8,6 +8,7 @@
 #include <sstream>
 #include <algorithm>
 #include <thread>
+#include <chrono>
 #include <stdlib.h>
 #include <memory.h>
 #include <omp.h>
@@ -46,7 +47,7 @@ void find_seed( vector<unsigned int> &seed, CSEREAD *read, const ktrim_param & k
 }
 
 void workingThread_SE_C( unsigned int tn, unsigned int start, unsigned int end, CSEREAD *workingReads,
-							ktrim_stat * kstat, writeBuffer * writebuffer, const ktrim_param & kp ) {
+							ktrim_stat *kstat, writeBuffer *writebuffer, const ktrim_param &kp ) {
 
 //	fprintf( stderr, "=== working thread %d: %d - %d\n", tn, start, end ), "\n";
 	writebuffer->b1stored[tn] = 0;
@@ -57,7 +58,7 @@ void workingThread_SE_C( unsigned int tn, unsigned int start, unsigned int end, 
 	vector<unsigned int> :: iterator it;
 	const char *p, *q;
 
-	register CSEREAD * wkr = workingReads + start;
+	register CSEREAD *wkr = workingReads + start;
 	for( unsigned int ii=start; ii!=end; ++ii, ++wkr ) {
 //		fprintf( stderr, "working: %d, %s\n", ii, wkr->id );
 		// quality control
@@ -115,9 +116,21 @@ void workingThread_SE_C( unsigned int tn, unsigned int start, unsigned int end, 
 				CSEREAD_resize( wkr, i );
 			}
 		}
-		writebuffer->b1stored[tn] += sprintf( writebuffer->buffer1[tn]+writebuffer->b1stored[tn],
-												"%s%s\n+\n%s\n", wkr->id, wkr->seq, wkr->qual);
 
+		writebuffer->b1stored[tn] += sprintf( writebuffer->buffer1[tn]+writebuffer->b1stored[tn],
+											"%s%s\n+\n%s\n", wkr->id, wkr->seq, wkr->qual);
+	}
+
+	// wait for my turn to write
+	while( true ) {
+		if( tn == write_thread ) {
+//			cerr << "Thread " << tn << " is writing.\n";
+			fwrite( writebuffer->buffer1[tn], sizeof(char), writebuffer->b1stored[tn], kp.fout1 );
+			++ write_thread;
+			break;
+		} else {
+			this_thread::sleep_for( waiting_time_for_writing );
+		}
 	}
 }
 
@@ -169,20 +182,10 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	}
 
 	// deal with multiple input files
-	vector<string> R1s;
-	extractFileNames( kp.FASTQU, R1s );
-	unsigned int totalFiles = R1s.size();
+//	vector<string> R1s;
+//	extractFileNames( kp.FASTQU, R1s );	//this is moved to param_handler
+	unsigned int totalFiles = kp.R1s.size();
 	//cout << "\033[1;34mINFO: " << totalFiles << " single-end fastq files will be loaded.\033[0m\n";
-
-	FILE *fout1;
-	string fileName = kp.outpre;
-	fileName += ".read1.fq";
-	fout1 = fopen( fileName.c_str(), "wt" );
-	if( fout1==NULL ) {
-		fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
-		fclose( fout1 );
-		return 103;
-	}
 
 	register unsigned int line = 0;
 	unsigned int threadCNT = kp.thread - 1;
@@ -190,21 +193,19 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		bool file_is_gz = false;
 		FILE *fq;
 		gzFile gfp;
-		register unsigned int i = R1s[fileCnt].size() - 3;
-		register const char * p = R1s[fileCnt].c_str();
+		register unsigned int i = kp.R1s[fileCnt].size() - 3;
+		register const char * p = kp.R1s[fileCnt].c_str();
 		if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ) {
 			file_is_gz = true;
 			gfp = gzopen( p, "r" );
 			if( gfp == NULL ) {
-				fprintf( stderr, "\033[1;31mError: open fastq file failed!\033[0m\n" );
-				fclose( fout1 );
+				cerr << "\033[1;31mError: open fastq file failed!\033[0m\n";
 				return 104;
 			}
 		} else {
 			fq = fopen( p, "rt" );
 			if( fq == NULL ) {
-				fprintf( stderr, "\033[1;31mError: open fastq file failed!\033[0m\n" );
-				fclose( fout1 );
+				cerr << "\033[1;31mError: open fastq file failed!\033[0m\n";
 				return 104;
 			}
 		}
@@ -228,6 +229,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		unsigned int threadLoaded;
 		while( nextBatch ) {
 			// start parallalization
+			write_thread = 0;
 			omp_set_num_threads( kp.thread );
 			#pragma omp parallel
 			{
@@ -238,7 +240,6 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 					unsigned int start = loaded * tn / kp.thread;
 					unsigned int end   = loaded * (tn+1) / kp.thread;
 					workingThread_SE_C( tn, start, end, workingReads, &kstat, &writebuffer, kp );
-					fwrite( writebuffer.buffer1[tn], sizeof(char), writebuffer.b1stored[tn], fout1 );
 					nextBatch = false;
 				} else {	// use 1 thread to load file, others for trimming
 					if( tn == threadCNT ) {
@@ -250,6 +251,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 							metEOF = feof( fq );
 						}
 						nextBatch = (threadLoaded!=0);
+//						cerr << "Thread " << tn << " has loaded " << threadLoaded << " reads.\n";
 //						fprintf( stderr, "Loaded %d, metEOF=%d\n", threadLoaded, metEOF );
 						//cerr << "Loading thread: " << threadLoaded << ", " << metEOF << ", " << nextBatch << '\n';
 					} else {
@@ -257,7 +259,6 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 						unsigned int end   = loaded * (tn+1) / threadCNT;
 						workingThread_SE_C( tn, start, end, workingReads, &kstat, &writebuffer, kp );
 						// write output; fwrite is thread-safe
-						fwrite( writebuffer.buffer1[tn], sizeof(char), writebuffer.b1stored[tn], fout1 );
 					}
 				}
 			} // parallel body
@@ -276,8 +277,6 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 			fclose( fq );
 		}
 	}
-
-	fclose( fout1 );
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
@@ -288,25 +287,15 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		tail_all  += kstat.tail_adapter[i];
 		dimer_all += kstat.dimer[i];
 	}
-	fileName = kp.outpre;
-	fileName += ".trim.log";
-	ofstream fout( fileName.c_str() );
-	if( fout.fail() ) { 
-		fprintf( stderr, "\033[1;34mError: cannot write log file!\033[0m\n" );
-		return 105;
-	}
-	fout << "Total\t"	 << line		<< '\n'
-		 << "Dropped\t"  << dropped_all << '\n'
-		 << "Aadaptor\t" << real_all	<< '\n'
-		 << "TailHit\t"  << tail_all	<< '\n'
-		 << "Dimer\t"    << dimer_all	<< '\n';
-	fout.close();
+	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\n",
+				line, dropped_all, real_all, tail_all, dimer_all );
 
 	//free memory
 	for(unsigned int i=0; i!=kp.thread; ++i) {
 		delete writebuffer.buffer1[i];
 	}
 	delete [] writebuffer.buffer1;
+
 	delete [] kstat.dropped;
 	delete [] kstat.real_adapter;
 	delete [] kstat.tail_adapter;
@@ -353,52 +342,33 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 	writebuffer.buffer1[0] = new char[ BUFFER_SIZE_PER_BATCH_READ_ST ];
 
 	// deal with multiple input files
-	vector<string> R1s;
-	extractFileNames( kp.FASTQU, R1s );
-
-	unsigned int totalFiles = R1s.size();
+	unsigned int totalFiles = kp.R1s.size();
 	//cout << "\033[1;34mINFO: " << totalFiles << " single-end fastq files will be loaded.\033[0m\n";
 
-	FILE *fout1;
-	string fileName = kp.outpre;
-	fileName += ".read1.fq";
-	fout1 = fopen( fileName.c_str(), "wt" );
-	if( fout1==NULL ) {
-		fprintf( stderr, "\033[1;31mError: write file failed!\033[0m\n" );
-		fclose( fout1 );
-		return 103;
-	}
-
-	//ifstream fq1;
 	register unsigned int line = 0;
+	write_thread = 0;
 	for( unsigned int fileCnt=0; fileCnt!=totalFiles; ++ fileCnt ) {
 		//fq1.open( R1s[fileCnt].c_str() );
 		bool file_is_gz = false;
 		FILE *fq;
 		gzFile gfp;
-		register unsigned int i = R1s[fileCnt].size() - 3;
-		register const char * p = R1s[fileCnt].c_str();
+		register unsigned int i = kp.R1s[fileCnt].size() - 3;
+		register const char * p = kp.R1s[fileCnt].c_str();
 		if( p[i]=='.' && p[i+1]=='g' && p[i+2]=='z' ) {
 //			fprintf( stderr, "GZ file!\n" );
 			file_is_gz = true;
 			gfp = gzopen( p, "r" );
 			if( gfp == NULL ) {
-				fprintf( stderr, "\033[1;31mError: open fastq file failed!\033[0m\n" );
-				fclose( fout1 );
+				cerr << "\033[1;31mError: open fastq file failed!\033[0m\n";
 				return 104;
 			}
 		} else {
 			fq = fopen( p, "rt" );
 			if( fq == NULL ) {
-				fprintf( stderr, "\033[1;31mError: open fastq file failed!\033[0m\n" );
-				fclose( fout1 );
+				cerr << "\033[1;31mError: open fastq file failed!\033[0m\n";
 				return 104;
 			}
 		}
-
-		register unsigned int last_seed;
-		vector<unsigned int> seed;
-		vector<unsigned int> :: iterator it;
 
 		while( true ) {
 			// get fastq reads
@@ -410,17 +380,10 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 			} else {
 				loaded = load_batch_data_SE_C( fq, read, READS_PER_BATCH_ST );
 			}
-
-			if( loaded == 0 )
-				break;
+			if( loaded == 0 ) break;
 		
-//			fprintf( stderr, "Work\n" );
 			workingThread_SE_C( 0, 0, loaded, read, &kstat, &writebuffer, kp );
-
 			// write output and update fastq statistics
-//			fprintf( stderr, "Output\n" );
-			fwrite( writebuffer.buffer1[0], sizeof(char), writebuffer.b1stored[0], fout1 );
-
 			line += loaded;
 			//cerr << '\r' << line << " reads loaded";
 
@@ -439,29 +402,15 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 			fclose( fq );
 		}
 	}
-	fclose( fout1 );
-	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	fileName = kp.outpre;
-	fileName += ".trim.log";
-	ofstream fout( fileName.c_str() );
-	if( fout.fail() ) { 
-		fprintf( stderr, "\033[1;34mError: cannot write log file!\033[0m\n" );
-		return 105;
-	}
-
-	fout << "Total\t"    << line					<< '\n'
-		 << "Dropped\t"  << kstat.dropped[0]		<< '\n'
-		 << "Aadaptor\t" << kstat.real_adapter[0]	<< '\n'
-		 << "TailHit\t"  << kstat.tail_adapter[0]	<< '\n'
-		 << "Dimer\t"    << kstat.dimer[0]			<< '\n';
-	fout.close();
+	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\n",
+				line, kstat.dropped[0], kstat.real_adapter[0], kstat.tail_adapter[0], kstat.dimer[0] );
 
 	//free memory
 //	delete buffer1;
-//	delete buffer2;
 //	delete fq1buffer;
+	delete writebuffer.buffer1[0];
 	delete [] read;
 	delete [] read_data;
 

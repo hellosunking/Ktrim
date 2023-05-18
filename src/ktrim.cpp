@@ -1,7 +1,7 @@
 /**
  * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date: Feb, 2020
- * Main program of Ktrim
+ * Date: May 2023
+ * Main program of Ktrim v1.5.0
 **/
 
 #include <iostream>
@@ -32,20 +32,21 @@ int main( int argc, char *argv[] ) {
 	else if( retValue != 0 )
 		return retValue;
 
-	if( kp.FASTQ2 == NULL ) {  // single-end data
-		if( kp.thread == 1 )
-			retValue = process_single_thread_SE_C( kp );
-		else
-			retValue = process_multi_thread_SE_C( kp );
-	} else {
+	if( kp.paired_end_data ) {  // single-end data
 		if( kp.thread == 1 )
 			retValue = process_single_thread_PE_C( kp );
 		else if( kp.thread == 2 )
 			retValue = process_two_thread_PE_C( kp );
 		else
 			retValue = process_multi_thread_PE_C( kp );
+	} else {
+		if( kp.thread == 1 )
+			retValue = process_single_thread_SE_C( kp );
+		else
+			retValue = process_multi_thread_SE_C( kp );
 	}
 
+	close_files( kp );
 	return retValue;
 }
 

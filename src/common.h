@@ -26,11 +26,13 @@
 
 #include <string>
 #include <vector>
+#include <chrono>
 using namespace std;
 
-const char * VERSION = "1.4.1 (Dec 2021)";
+const char * VERSION = "1.5.0 (May 2023)";
 
-// 1.4.1, now we use 2 threads for reading and 2 threads more writting, ~10% faster
+// 1.5.0, support loading file names from a file, and output to stdout
+// 1.4.1, now we use 2 threads for reading and 2 threads for writting, ~10% faster
 // 1.4.0, now we use 2 threads for reading files in PE mode, ~33% faster
 // 1.3.1 fixed the bug in dimers when working on SE data processing using single-thread 
 // 1.2.2 fixed the bug when "-o" is NOT present but the program does not quit
@@ -42,6 +44,10 @@ const unsigned int MAX_READ_CYCLE = 512;
 
 // maxmimum insert size to call a dimer
 const unsigned int DIMER_INSERT   = 1;
+
+// time interval for querying for writing
+static int write_thread;
+const static chrono::milliseconds waiting_time_for_writing(1);
 
 typedef struct {
 	char *id;
@@ -141,8 +147,10 @@ const char FILE_SEPARATOR = ',';
 
 // paramaters related
 typedef struct {
+	char *filelist;
 	char *FASTQ1, *FASTQ2, *FASTQU;
 	char *outpre;
+	vector<string> R1s, R2s;
 
 	unsigned int thread;
 	unsigned int min_length;
@@ -158,9 +166,15 @@ typedef struct {
 
 	bool use_default_mismatch;
 	float mismatch_rate;
+
+	bool paired_end_data;
+	bool write2stdout;
+	FILE *fout1;
+	FILE *fout2;
+	FILE *flog;
 } ktrim_param;
 
-const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:hv";
+const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:f:chv";
 
 // definition of functions
 void usage();
@@ -168,6 +182,7 @@ void init_param( ktrim_param &kp );
 int  process_cmd_param( int argc, char * argv[], ktrim_param &kp );
 void print_param( const ktrim_param &kp );
 void extractFileNames( const char *str, vector<string> & Rs );
+void loadFQFileNames( ktrim_param &kp );
 
 // C-style
 unsigned int load_batch_data_PE_C( FILE * fq1, FILE * fq2, CPEREAD *loadingReads, unsigned int num );

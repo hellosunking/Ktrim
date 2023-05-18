@@ -1,7 +1,7 @@
 ![Ktrim logo](https://github.com/hellosunking/hellosunking.github.io/blob/master/logos/Ktrim.png "Ktrim logo")
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
-Version 1.4.1, Dec 2021<br />
+Version 1.5.0, May 2023<br />
 Author: Kun Sun \(sunkun@szbl.ac.cn\)<br />
 <br />
 Distributed under the
@@ -10,26 +10,25 @@ for personal and academic usage only.<br />
 For detailed information please refer to the license files under `license` directory.
 
 ---
-## Release of version 1.4.1
-The author is pleased to release version 1.4 of Ktrim. In this version, file loading procedure has been
-optimized to provide a ~50% speed-up for paired-end data, and ~10% speed-up for single-end data using 4 threads.
+## Release of version 1.5
+The author is pleased to release version 1.5 of Ktrim with 2 features to improve its usability:
+it allows the users to provide a file that records the paths to the FASTQ files (e.g., the library
+was sequenced multiple times) as input, and output the results to stdout to pipe with other software
+(e.g., aligners). There is also a minor change in data reporting procedure to improve its speed.
 
-## Release of version 1.2
-The major improvements in this version are:
-1. Support `Gzip` compressed file as input (requires `zlib`; ~30% slower than plain text);
-2. Support quality trimming using a window, while not just 1 base;
-3. Optimize tail-hits for paired-end data. Over-trim rate shows a 10-fold decrease (from 3.8% to 0.37%);
-4. ~20% performance improvement in most scenarios, while ~10% defict for paired-end multi-thread mode.
-
-**IMPORTANT NOTICE: There is a bug in multi-file handling in v1.2.0 and previous versions of Ktrim, therefore
-the author strongly recommend all users update to version 1.2.1 (or later versions).**
+## Major features of Ktrim
+1. Fast, sensitive, and accurate
+2. Supports both paired- and single-end data
+3. Supports both Gzipped and plain text
+4. Supports multi-threading for speed-up
+5. Built-in support for common adapters; customized adapters are also supported
 
 ## Installation
 `Ktrim` is written in `C++` for GNU Linux/Unix platforms. After uncompressing the source package, you
 can find an executable file `ktrim` under `bin/` directory compiled using `g++ v4.8.5` and linked with
-`libz v1.2.7` for Linux x86_64 system. If you could not run it (which is usually caused by low version of
-`libc++` or `libz` library) or you want to build a version optimized for your system, you can re-compile
-the programs:
+`libz v1.2.7` for Linux x86_64 system. If you could not run it (which is usually caused by low version
+of `libc++` or `libz` library) or you want to build a version optimized for your system, you can
+re-compile the programs:
 ```
 user@linux$ make clean && make
 ```
@@ -50,20 +49,24 @@ user@linux# make install
 
 Call `ktrim` without any parameters to see the usage (or use '-h' option):
 ```
-Usage: Ktrim [options] -1/-U Read1.fq [ -2 Read2.fq ] -o out.prefix
+Usage: Ktrim [options] -f fq.list {-1/-U Read1.fq [-2 Read2.fq ]} -o out.prefix
 
 Author : Kun Sun (sunkun@szbl.ac.cn)
-Version: 1.4.1 (Dec 2021)
+Version: 1.5.0 (May 2023)
 
 Ktrim is designed to perform adapter- and quality-trimming of FASTQ files.
 
 Compulsory parameters:
 
+  -f fq.list      Specify the path to a file containing path to read 1/2 fastq files
+
+OR you can specify the fastq files directly:
+
   -1/-U Read1.fq  Specify the path to the files containing read 1
                   If your data is Paired-end, use '-1' and specify read 2 files using '-2' option
                   Note that if '-U' is used, specification of '-2' is invalid
                   If you have multiple files for your sample, use ',' to separate them
-                  Note that Gzip-compressed files are supported from version 1.2.0
+                  Note that Gzip-compressed files (with .gz suffix) are also supported
 
   -o out.prefix   Specify the prefix of the output files
                   Note that output files include trimmed reads in FASTQ format and statistics
@@ -75,11 +78,11 @@ Optional parameters:
                   If you have multiple files for your sample, use ',' to separate them
                   and make sure that all the files are well paired in '-1' and '-2' options
 
-  -t threads      Specify how many threads should be used (default: 1, single-thread)
+  -c              Write the trimming results to stdout (default: not set)
+                  Note that the interleaved fastq format will be used for paired-end data.
+  -t threads      Specify how many threads should be used (default: 4)
                   You can set '-t' to 0 to use all threads (automatically detected)
-
-                  Note that for v1.2.0, the author highly recommand the users use 4 or less threads
-                  because more threads would not benefit the performance
+                  2-8 threads are recommended, as more threads would not benefit the performance
 
   -p phred-base   Specify the baseline of the phred score (default: 33)
   -q score        The minimum quality score to keep the cycle (default: 20)
@@ -142,31 +145,35 @@ user@linux$ ktrim -U /path/to/read1.fq -o /path/to/output/dir
 
 ### Example 2
 Your data is generated using a kit with customized adapters; your data is composed of 3 lanes in Paired-end
-mode and uses Phred scoring system starts from 35; you want to keep the high quality (Phred score >=30)
-bases and reads longer than 50 bp after trimming; and you want to use 4 threads to speed-up the analysis,
+mode and you have prepared a `file.list` to record the paths as follows:
+```
+/path/to/lane1.read1.fq.gz	/path/to/lane1.read2.fq.gz
+/path/to/lane2.read1.fq.gz	/path/to/lane2.read2.fq.gz
+/path/to/lane3.read1.fq	/path/to/lane3.read2.fq
+```
+in addition, your Phred scoring system starts from 64; you want to keep the high quality (Phred score >=30)
+bases and reads longer than 50 bp after trimming; and you want to use 8 threads to speed-up the analysis,
 then you can run:
 ```
-user@linux$ ktrim -1 /path/to/lane1.read1.fq.gz,/path/to/lane2.read1.fq.gz,/path/to/lane3.read1.fq \
-                  -2 /path/to/lane1.read2.fq.gz,/path/to/lane2.read2.fq.gz,/path/to/lane3.read2.fq \
-                  -t 4 -p 35 -q 30 -s 50 -o /path/to/output/dir \
+user@linux$ ktrim -f file.list -t 8 -p 64 -q 30 -s 50 -o /path/to/output/dir \
                   -a READ1_ADAPTER_SEQUENCE -b READ2_ADAPTER_SEQUENCE
 ```
-
-## Testing dataset
-Under the `testing_dataset/` directory, a script named `simu.reads.pl` is provided to generate *in silico*
-reads for testing purpose only. **Note that the results in the paper is based on the data generated by this
-script.** Another script `check.accuracy.pl` is designed to evaluate the accuracies of the trimming tools.
-
-Please refer to the Supplementary Method for reproducing the results in the paper (using Ktrim v1.1.0).
 
 ## Outputs explanation
 `Ktrim` outputs the trimmed reads in FASTQ format and key statistics (e.g., the numbers of reads that
 contains adapters and the number of reads in the trimmed files).
 
+## Testing dataset and benchmark evaluation
+Under the `testing_dataset/` directory, a script named `simu.reads.pl` is provided to generate *in silico*
+reads for testing purpose only. **Note that the results in the paper is based on the data generated by this
+script.** Another script `check.accuracy.pl` is designed to evaluate the accuracies of the trimming tools.
+
+Please refer to Supplementary Method in the paper for reproducing the results (using Ktrim v1.1.0).
+
 ## Citation
 When referencing, please cite "Sun K: **Ktrim: an extra-fast and accurate adapter- and quality-trimmer
 for sequencing data.** *Bioinformatics* 2020 Jun 1; 36(11):3561-3562."
-[PubMed](https://www.ncbi.nlm.nih.gov/pubmed/32159761 "PubMed link")
+[PubMed](https://www.ncbi.nlm.nih.gov/pubmed/32159761 "Ktrim@PubMed")
 [Full Text](https://doi.org/10.1093/bioinformatics/btaa171 "Full text on Bioinformatics journal")
 
 ---

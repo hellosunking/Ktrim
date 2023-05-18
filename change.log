@@ -1,7 +1,13 @@
 Ktrim change log
 
+v1.5.0 May 2023
+	* Add support for providing input using a file (-f option)
+	* Add support for outputting to stdout for piping with other tools (-c option; use interleaved-fastq format for paired-end data)
+	* Optimize file writting, PE data has ~25% speed-up (under 4-threads)
+	* Default thread is set to 4 (-t option)
+
 v1.4.1 Dec 2021
-	* Optimize file writting, both SE/PE data have ~10% speed-up (4-threads)
+	* Optimize file writting, both SE/PE data has ~10% speed-up (under 4-threads)
 	* Allows 1 mismatch in tail-hits of PE data
 
 v1.4.0 Oct 2021
