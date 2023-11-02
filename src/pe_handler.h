@@ -361,7 +361,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 		loadingReads = readB;
 		workingReads = readA;
 		bool nextBatch = true;
-		unsigned int threadLoaded, threadLoaded2;
+		unsigned int threadLoaded=0, threadLoaded2=0;
 		unsigned int NumWkThreads;
 		while( nextBatch ) {
 //			cerr << "Working on " << loaded << " reads\n";

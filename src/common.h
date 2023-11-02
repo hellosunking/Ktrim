@@ -29,8 +29,8 @@
 #include <chrono>
 using namespace std;
 
-const char * VERSION = "1.5.0 (May 2023)";
-
+const char * VERSION = "1.5.1 (Nov 2023)";
+// 1.5.1, fix a bug that causes exit if the FASTQ files are too small
 // 1.5.0, support loading file names from a file, and output to stdout
 // 1.4.1, now we use 2 threads for reading and 2 threads for writting, ~10% faster
 // 1.4.0, now we use 2 threads for reading files in PE mode, ~33% faster
