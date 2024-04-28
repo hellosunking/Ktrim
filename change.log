@@ -1,5 +1,8 @@
 Ktrim change log
 
+v1.5.1 Nov 2023
+	* Fix a bug that causes Ktrim exit when input FASTQ file is too small
+
 v1.5.0 May 2023
 	* Add support for providing input using a file (-f option)
 	* Add support for outputting to stdout for piping with other tools (-c option; use interleaved-fastq format for paired-end data)

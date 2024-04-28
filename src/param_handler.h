@@ -297,7 +297,7 @@ void close_files( const ktrim_param &kp ) {
 }
 
 void usage() {
-cerr << "\n\033[1;34mUsage: Ktrim [options] -f fq.list {-1/-U Read1.fq [-2 Read2.fq ]} -o out.prefix\033[0m\n\n"
+cerr << "\n\033[1;34mUsage: Ktrim [options] -f <fq.list> {-1/-U <Read1.fq> [-2 Read2.fq ]} -o <out.prefix>\033[0m\n\n"
 	 << "Author : Kun Sun (sunkun@szbl.ac.cn)\n"
 	 << "Version: " << VERSION << "\n\n"
 
@@ -306,7 +306,7 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -f fq.list {-1/-U Read1.fq [-2 Read2
 	 << "Compulsory parameters:\n\n"
 
 	 << "  -f fq.list        Specify the path to a file containing path to read 1/2 fastq files\n\n"
-     << "OR you can specify the fastq files directly:\n\n"
+     << "OR specify the fastq files directly:\n\n"
 	 << "  -1/-U R1.fq[.gz]  Specify the path to the files containing read 1\n"
 	 << "                    If your data is Paired-end, use '-1' and specify read 2 files using '-2' option\n"
 	 << "                    Note that if '-U' is used, specification of '-2' is invalid\n"

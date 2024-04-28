@@ -1,7 +1,7 @@
-![Ktrim logo](https://github.com/hellosunking/hellosunking.github.io/blob/master/logos/Ktrim.png "Ktrim logo")
+<img src="https://github.com/hellosunking/hellosunking.github.io/blob/master/logos/Ktrim.png" width="50%" height="50%">
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
-Version 1.5.0, May 2023<br />
+Version 1.5.1, Nov 2023<br />
 Author: Kun Sun \(sunkun@szbl.ac.cn\)<br />
 <br />
 Distributed under the
@@ -11,10 +11,9 @@ For detailed information please refer to the license files under `license` direc
 
 ---
 ## Release of version 1.5
-The author is pleased to release version 1.5 of Ktrim with 2 features to improve its usability:
-it allows the users to provide a file that records the paths to the FASTQ files (e.g., the library
-was sequenced multiple times) as input, and output the results to stdout to pipe with other software
-(e.g., aligners). There is also a minor change in data reporting procedure to improve its speed.
+The author is pleased to release version 1.5 of Ktrim with two features to improve its usability:
+it allows the users to use a file to record the paths to the FASTQ files (e.g., the library was
+sequenced multiple times), and output to stdout to pipe with other software (e.g., aligners).
 
 ## Major features of Ktrim
 1. Fast, sensitive, and accurate
@@ -26,9 +25,9 @@ was sequenced multiple times) as input, and output the results to stdout to pipe
 ## Installation
 `Ktrim` is written in `C++` for GNU Linux/Unix platforms. After uncompressing the source package, you
 can find an executable file `ktrim` under `bin/` directory compiled using `g++ v4.8.5` and linked with
-`libz v1.2.7` for Linux x86_64 system. If you could not run it (which is usually caused by low version
-of `libc++` or `libz` library) or you want to build a version optimized for your system, you can
-re-compile the programs:
+`libz v1.2.7` for Linux x86_64 system. If you could not run it (which is usually caused by low version of
+`libc++` or `libz` library) or you want to build a version optimized for your system, you can re-compile
+the programs:
 ```
 user@linux$ make clean && make
 ```
