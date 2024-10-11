@@ -31,7 +31,7 @@ void init_param( ktrim_param &kp ) {
 	kp.FASTQU = NULL;
 	kp.outpre = NULL;
 
-	kp.thread = 4;
+	kp.thread = 6;
 	kp.min_length = 36;
 	kp.phred   = 33;
 	kp.minqual = 20;
@@ -50,6 +50,7 @@ void init_param( ktrim_param &kp ) {
 	kp.adapter_index3 = NULL;
 
 	kp.write2stdout = false;
+	kp.outputReadWithAdaptorOnly = false;
 	kp.use_default_mismatch = true;
 	kp.mismatch_rate = 0.125;
 }
@@ -77,6 +78,7 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 
 			case 'm': kp.use_default_mismatch = false; kp.mismatch_rate = atof(optarg); break;
 			case 'c': kp.write2stdout = true; break;
+			case 'R': kp.outputReadWithAdaptorOnly = true; break;
 
 			case 'h': usage(); return 100;
 			case 'v': cout << VERSION << '\n'; return 100;
@@ -182,6 +184,13 @@ int process_cmd_param( int argc, char * argv[], ktrim_param &kp ) {
 			kp.adapter_index1 = transposase_index1;
 			kp.adapter_index2 = transposase_index2;
 			kp.adapter_index3 = transposase_index3;
+		} else if( strcmp(kp.seqKit, "CLIP") == 0 || strcmp(kp.seqKit, "clip") == 0 ) {
+			kp.adapter_r1 = clip_adapter_r1;
+			kp.adapter_r2 = clip_adapter_r2;
+			kp.adapter_len = clip_adapter_len;
+			kp.adapter_index1 = clip_index1;
+			kp.adapter_index2 = clip_index2;
+			kp.adapter_index3 = clip_index3;
 		} else if( strcmp(kp.seqKit, "BGI") == 0 || strcmp(kp.seqKit, "bgi") == 0 ) {
 			kp.adapter_r1 = bgi_adapter_r1;
 			kp.adapter_r2 = bgi_adapter_r2;
@@ -327,13 +336,14 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -f <fq.list> {-1/-U <Read1.fq> [-2 R
 
 	 << "  -c                Write the trimming results to stdout (default: not set)\n"
      << "                    Note that the interleaved fastq format will be used for paired-end data.\n"
+     << "  -R                Only output reads with adapter (default: not set)\n"
 	 << "  -s size           Minimum read size to be kept after trimming (default: 36; must be larger than 10)\n\n"
 
-	 << "  -t threads        Specify how many threads should be used (default: 4)\n"
+	 << "  -t threads        Specify how many threads should be used (default: 6)\n"
 	 << "                    You can set '-t' to 0 to use all threads (automatically detected)\n\n"
 
 	 << "  -k kit            Specify the sequencing kit to use built-in adapters\n"
-	 << "                    Currently supports 'Illumina' (default), 'Nextera', and 'BGI'\n"
+	 << "                    Currently supports 'Illumina' (default), 'Nextera', 'CLIP', and 'BGI'\n"
 	 << "  -a sequence       Specify the adapter sequence in read 1\n"
 	 << "  -b sequence       Specify the adapter sequence in read 2\n"
 	 << "                    If '-a' is set while '-b' is not, I will assume that read 1 and 2 use same adapter\n"
@@ -351,7 +361,8 @@ cerr << "\n\033[1;34mUsage: Ktrim [options] -f <fq.list> {-1/-U <Read1.fq> [-2 R
 	 << "  -h                Show this help information and quit (exit code=0)\n"
 	 << "  -v                Show the software version and quit (exit code=0)\n\n"
 
-	 << "Please refer to README.md file for more information (e.g., setting adapters).\n\n"
+	 << "Please refer to README.md file for more information (e.g., setting adapters).\n"
+     << "Citation: Sun K. Bioinformatics 2020 Jun 1; 36(11):3561-3562. (PMID: 32159761)\n\n"
 	 << "\033[1;34mKtrim: extra-fast and accurate adapter- and quality-trimmer.\033[0m\n\n";
 }
 

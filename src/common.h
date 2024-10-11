@@ -29,8 +29,13 @@
 #include <chrono>
 using namespace std;
 
-const char * VERSION = "1.5.1 (Nov 2023)";
+const char * VERSION = "1.6.0 (Oct 2024)";
 
+// 1.6.0, add '-w' option to output reads with adapters only;
+//        add built-in adapters for CLIP-seq;
+//        fix a bug in single-thread file-writing
+//        change the waiting_for_writing check to 0.1 ms
+//        change the default thread to 6
 // 1.5.1, fix a bug that causes exit if the FASTQ files are too small
 // 1.5.0, support loading file names from a file, and output to stdout for pipelines
 // 1.4.1, now we use 2 threads for reading and 2 threads for writting, ~10% faster
@@ -48,7 +53,8 @@ const unsigned int DIMER_INSERT   = 1;
 
 // time interval for querying for writing
 static int write_thread;
-const static chrono::milliseconds waiting_time_for_writing(1);
+//const static chrono::milliseconds waiting_time_for_writing(1);
+const static chrono::microseconds waiting_time_for_writing(100);
 
 typedef struct {
 	char *id;
@@ -74,6 +80,7 @@ typedef struct {
 	unsigned int *real_adapter;
 	unsigned int *tail_adapter;
 	unsigned int *dimer;
+	unsigned int *pass;
 } ktrim_stat;
 
 typedef struct {
@@ -113,6 +120,16 @@ const unsigned int transposase_adapter_len = 14;
 const char * transposase_index1 = "TCG";		// use first 3 as index
 const char * transposase_index2 = "GTC";		// use first 3 as index
 const char * transposase_index3 = "TCG";		// for single-end data
+
+//PRO-seq/CLIP-seq following Mahat et al. Nat Protoc 2016; 11:1455–1476. DOI: 10.1038/nprot.2016.086
+//NOTE: we recommend only use read2 (template strand) and set '-w' to enable output the reads with adapters
+const char * clip_adapter_r1 = "TGGAATTCTCGGGTGCCAAGG";
+const char * clip_adapter_r2 = "GATCGTCGGACTGTAGAACTCTGAAC";
+const unsigned int clip_adapter_len = 21;
+const char * clip_index1 = "TGG";	// use first 3 as index
+const char * clip_index2 = "GAT";	// use first 3 as index
+const char * clip_index3 = "TGG";	// for single-end data
+
 // BGI adapters
 //const char * bgi_adapter_r1 = "AAGTCGGAGGCCAAGCGGTCTTAGGAAGACAA";
 //const char * bgi_adapter_r2 = "AAGTCGGATCGTAGCCATGTCGTTCTGTGAGC";
@@ -170,12 +187,13 @@ typedef struct {
 
 	bool paired_end_data;
 	bool write2stdout;
+	bool outputReadWithAdaptorOnly;
 	FILE *fout1;
 	FILE *fout2;
 	FILE *flog;
 } ktrim_param;
 
-const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:f:chv";
+const char * param_list = "1:2:U:o:t:k:s:p:q:w:a:b:m:f:chRv";
 
 // definition of functions
 void usage();

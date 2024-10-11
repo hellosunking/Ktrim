@@ -92,7 +92,9 @@ void workingThread_SE_C( unsigned int tn, unsigned int start, unsigned int end, 
 				last_seed = *it;
 			}
 		}
+		register bool no_valid_adapter = true;
 		if( it != seed.end() ) {	// adapter found
+			no_valid_adapter = false;
 			++ kstat->real_adapter[tn];
 			if( *it >= kp.min_length )	{
 				CSEREAD_resize( wkr, *it );
@@ -117,6 +119,10 @@ void workingThread_SE_C( unsigned int tn, unsigned int start, unsigned int end, 
 			}
 		}
 
+		if( kp.outputReadWithAdaptorOnly && no_valid_adapter )
+			continue;
+
+		++ kstat->pass[tn];
 		writebuffer->b1stored[tn] += sprintf( writebuffer->buffer1[tn]+writebuffer->b1stored[tn],
 											"%s%s\n+\n%s\n", wkr->id, wkr->seq, wkr->qual);
 	}
@@ -165,6 +171,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	kstat.real_adapter = new unsigned int [ kp.thread ];
 	kstat.tail_adapter = new unsigned int [ kp.thread ];
 	kstat.dimer	       = new unsigned int [ kp.thread ];
+	kstat.pass	       = new unsigned int [ kp.thread ];
 
 	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
@@ -179,6 +186,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		kstat.real_adapter[i] = 0;
 		kstat.tail_adapter[i] = 0;
 		kstat.dimer[i] = 0;
+		kstat.pass[i]  = 0;
 	}
 
 	// deal with multiple input files
@@ -280,15 +288,16 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0;
+	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0, pass_all=0;
 	for( unsigned int i=0; i!=kp.thread; ++i ) {
 		dropped_all += kstat.dropped[i];
 		real_all  += kstat.real_adapter[i];
 		tail_all  += kstat.tail_adapter[i];
 		dimer_all += kstat.dimer[i];
+		pass_all  += kstat.pass[i];
 	}
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\n",
-				line, dropped_all, real_all, tail_all, dimer_all );
+	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+				line, dropped_all, real_all, tail_all, dimer_all, pass_all );
 
 	//free memory
 	for(unsigned int i=0; i!=kp.thread; ++i) {
@@ -299,6 +308,8 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	delete [] kstat.dropped;
 	delete [] kstat.real_adapter;
 	delete [] kstat.tail_adapter;
+	delete [] kstat.dimer;
+	delete [] kstat.pass;
 
 	delete [] readA;
 	delete [] readB;
@@ -330,10 +341,12 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 	kstat.real_adapter = new unsigned int [ 1 ];
 	kstat.tail_adapter = new unsigned int [ 1 ];
 	kstat.dimer        = new unsigned int [ 1 ];
+	kstat.pass         = new unsigned int [ 1 ];
 	kstat.dropped[0] = 0;
 	kstat.real_adapter[0] = 0;
 	kstat.tail_adapter[0] = 0;
 	kstat.dimer[0] = 0;
+	kstat.pass[0] = 0;
 
 	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
@@ -346,7 +359,6 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 	//cout << "\033[1;34mINFO: " << totalFiles << " single-end fastq files will be loaded.\033[0m\n";
 
 	register unsigned int line = 0;
-	write_thread = 0;
 	for( unsigned int fileCnt=0; fileCnt!=totalFiles; ++ fileCnt ) {
 		//fq1.open( R1s[fileCnt].c_str() );
 		bool file_is_gz = false;
@@ -381,7 +393,8 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 				loaded = load_batch_data_SE_C( fq, read, READS_PER_BATCH_ST );
 			}
 			if( loaded == 0 ) break;
-		
+
+			write_thread = 0;
 			workingThread_SE_C( 0, 0, loaded, read, &kstat, &writebuffer, kp );
 			// write output and update fastq statistics
 			line += loaded;
@@ -404,8 +417,8 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 	}
 
 	// write trim.log
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\n",
-				line, kstat.dropped[0], kstat.real_adapter[0], kstat.tail_adapter[0], kstat.dimer[0] );
+	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+				line, kstat.dropped[0], kstat.real_adapter[0], kstat.tail_adapter[0], kstat.dimer[0], kstat.pass[0] );
 
 	//free memory
 //	delete buffer1;

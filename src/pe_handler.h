@@ -40,6 +40,7 @@ void init_kstat_wrbuffer( ktrim_stat &kstat, writeBuffer &writebuffer, unsigned 
 	kstat.real_adapter = new unsigned int [ nthread ];
 	kstat.tail_adapter = new unsigned int [ nthread ];
 	kstat.dimer        = new unsigned int [ nthread ];
+	kstat.pass         = new unsigned int [ nthread ];
 
 	// buffer for storing the modified reads per thread
 	writebuffer.buffer1  = new char * [ nthread ];
@@ -62,6 +63,7 @@ void init_kstat_wrbuffer( ktrim_stat &kstat, writeBuffer &writebuffer, unsigned 
 		kstat.real_adapter[i] = 0;
 		kstat.tail_adapter[i] = 0;
 		kstat.dimer[i] = 0;
+		kstat.pass[i]  = 0;
 	}
 }
 
@@ -153,6 +155,7 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 		if( hit_seed != 0 )
 			sort( seed, seed + hit_seed );
 
+		register bool no_valid_adapter = true;
 		register unsigned int last_seed = impossible_seed;	// a position which cannot be a seed
 		//end_of_seed = seed.end();
 		//for( it=seed.begin(); it!=end_of_seed; ++it ) {
@@ -167,6 +170,7 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 			}
 		}
 		if( it != end_of_seed ) {	// adapter found
+			no_valid_adapter = false;
 			++ kstat->real_adapter[tn];
 			if( *it >= kp.min_length )	{
 				CPEREAD_resize( wkr, *it );
@@ -178,6 +182,7 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 				continue;
 			}
 		} else {	// seed not found, now check the tail 2 or 1, if perfect match, drop these 2
+			// note: I will NOT consider tail hits as adapter_found, as '-w' should be used when insertDNA is very short
 			i = wkr->size - 2;
 			register const char *p = wkr->seq1;
 			register const char *q = wkr->seq2;
@@ -216,6 +221,11 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 				}
 			}
 		}
+
+		if( kp.outputReadWithAdaptorOnly && no_valid_adapter )
+			continue;
+
+		++ kstat->pass[tn];
 		if( kp.write2stdout ) {
 			writebuffer->b1stored[tn] += sprintf( writebuffer->buffer1[tn]+writebuffer->b1stored[tn],
 												"%s%s\n+\n%s\n%s%s\n+\n%s\n",
@@ -453,15 +463,16 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0;
+	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0, pass_all=0;
 	for( unsigned int i=0; i!=kp.thread; ++i ) {
 		dropped_all += kstat.dropped[i];
 		real_all  += kstat.real_adapter[i];
 		tail_all  += kstat.tail_adapter[i];
 		dimer_all += kstat.dimer[i];
+		pass_all  += kstat.pass[i];
 	}
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\n",
-				line, dropped_all, real_all, tail_all, dimer_all );
+	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+				line, dropped_all, real_all, tail_all, dimer_all, pass_all );
 
 	//free memory
 	for(unsigned int i=0; i!=kp.thread; ++i) {
@@ -476,6 +487,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 	delete [] kstat.real_adapter;
 	delete [] kstat.tail_adapter;
 	delete [] kstat.dimer;
+	delete [] kstat.pass;
 
 	delete [] readA;
 	delete [] readB;
@@ -515,10 +527,12 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 	kstat.real_adapter = new unsigned int [ 1 ];
 	kstat.tail_adapter = new unsigned int [ 1 ];
 	kstat.dimer        = new unsigned int [ 1 ];
+	kstat.pass         = new unsigned int [ 1 ];
 	kstat.dropped[0] = 0;
 	kstat.real_adapter[0] = 0;
 	kstat.tail_adapter[0] = 0;
 	kstat.dimer[0] = 0;
+	kstat.pass[0]  = 0;
 
 	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
@@ -543,7 +557,6 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 	unsigned int totalFiles = kp.R1s.size();
 	//cout << "\033[1;34mINFO: " << totalFiles << " paired fastq files will be loaded.\033[0m\n";
 
-	write_thread = 0;
 	register unsigned int line = 0;
 	for( unsigned int fileCnt=0; fileCnt!=totalFiles; ++ fileCnt ) {
 		bool file_is_gz = false;
@@ -578,7 +591,8 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 				loaded = load_batch_data_PE_both_C( fq1, fq2, read, READS_PER_BATCH_ST );
 			}
 			if( loaded == 0 ) break;
-			
+
+			write_thread = 0;
 			workingThread_PE_C( 0, 0, loaded, read, &kstat, &writebuffer, kp );
 			// write output and update fastq statistics
 /*			if( ! kp.write2stdout ) {
@@ -607,8 +621,8 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\n",
-				line, kstat.dropped[0], kstat.real_adapter[0], kstat.tail_adapter[0], kstat.dimer[0] );
+	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+				line, kstat.dropped[0], kstat.real_adapter[0], kstat.tail_adapter[0], kstat.dimer[0], kstat.pass[0] );
 
 	delete writebuffer.buffer1[0];
 	if( ! kp.write2stdout ) delete writebuffer.buffer2[0];
@@ -761,9 +775,9 @@ int process_two_thread_PE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\n",
+	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
 				line, kstat.dropped[0]+kstat.dropped[1], kstat.real_adapter[0]+kstat.real_adapter[1],
-				kstat.tail_adapter[0]+kstat.tail_adapter[1], kstat.dimer[0]+kstat.dimer[1] );
+				kstat.tail_adapter[0]+kstat.tail_adapter[1], kstat.dimer[0]+kstat.dimer[1], kstat.pass[0]+kstat.pass[1] );
 
 	//free memory
 	for(unsigned int i=0; i!=kp.thread; ++i) {
@@ -776,6 +790,7 @@ int process_two_thread_PE_C( const ktrim_param &kp ) {
 	delete [] kstat.real_adapter;
 	delete [] kstat.tail_adapter;
 	delete [] kstat.dimer;
+	delete [] kstat.pass;
 
 	delete [] readA;
 	delete [] readA_data;

@@ -1,5 +1,11 @@
 Ktrim change log
 
+v1.6.0 Oct 2024
+	* Add '-w' option to output reads with adapters only
+	* Add built-in adapters for CLIP-seq
+	* Fix a bug in single-thread file-writing
+	* Change the default thread to 6
+
 v1.5.1 Nov 2023
 	* Fix a bug that causes Ktrim exit when input FASTQ file is too small
 

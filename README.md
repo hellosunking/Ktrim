@@ -1,7 +1,7 @@
 <img src="https://github.com/hellosunking/hellosunking.github.io/blob/master/logos/Ktrim.png" width="50%" height="50%">
 
 # Ktrim: an extra-fast and accurate adapter- and quality-trimmer for sequencing data
-Version 1.5.1, Nov 2023<br />
+Version 1.6.0, Oct 2024<br />
 Author: Kun Sun \(sunkun@szbl.ac.cn\)<br />
 <br />
 Distributed under the
@@ -10,24 +10,24 @@ for personal and academic usage only.<br />
 For detailed information please refer to the license files under `license` directory.
 
 ---
-## Release of version 1.5
-The author is pleased to release version 1.5 of Ktrim with two features to improve its usability:
-it allows the users to use a file to record the paths to the FASTQ files (e.g., the library was
-sequenced multiple times), and output to stdout to pipe with other software (e.g., aligners).
+## Release of version 1.6
+The author is pleased to release version 1.6 of Ktrim with usability improvement.
+This version added a "-R" option to output reads with adapters only. This could be useful for libraries
+that (e.g., CLIP-seq, whose adapters are also included for built-in support).
 
 ## Major features of Ktrim
 1. Fast, sensitive, and accurate
 2. Supports both paired- and single-end data
 3. Supports both Gzipped and plain text
-4. Supports multi-threading for speed-up
-5. Built-in support for common adapters; customized adapters are also supported
+4. Supports output to stdout to pipe with downstream software, e.g., aligners
+5. Supports multi-threading for speed-up
+6. Built-in support for common adapters; customized adapters are also supported
 
 ## Installation
-`Ktrim` is written in `C++` for GNU Linux/Unix platforms. After uncompressing the source package, you
-can find an executable file `ktrim` under `bin/` directory compiled using `g++ v4.8.5` and linked with
-`libz v1.2.7` for Linux x86_64 system. If you could not run it (which is usually caused by low version of
-`libc++` or `libz` library) or you want to build a version optimized for your system, you can re-compile
-the programs:
+`Ktrim` is written in `C++` for GNU Linux/Unix platforms. After uncompressing the source package, you can
+find an executable file at `bin/ktrim` compiled using `g++ v4.8.5` and linked with `libz v1.2.7` for Linux
+x64 system. If you could not run it (which is usually caused by low version of `libc++` or `libz` libraries)
+or you want to build a version optimized for your system, you can re-compile the programs:
 ```
 user@linux$ make clean && make
 ```
@@ -51,7 +51,7 @@ Call `ktrim` without any parameters to see the usage (or use '-h' option):
 Usage: Ktrim [options] -f fq.list {-1/-U Read1.fq [-2 Read2.fq ]} -o out.prefix
 
 Author : Kun Sun (sunkun@szbl.ac.cn)
-Version: 1.5.0 (May 2023)
+Version: 1.6.0 (Oct 2024)
 
 Ktrim is designed to perform adapter- and quality-trimming of FASTQ files.
 
@@ -79,7 +79,8 @@ Optional parameters:
 
   -c              Write the trimming results to stdout (default: not set)
                   Note that the interleaved fastq format will be used for paired-end data.
-  -t threads      Specify how many threads should be used (default: 4)
+  -R                Only output reads with adapter (default: not set)
+  -t threads      Specify how many threads should be used (default: 6)
                   You can set '-t' to 0 to use all threads (automatically detected)
                   2-8 threads are recommended, as more threads would not benefit the performance
 
@@ -108,6 +109,7 @@ Optional parameters:
   -v              Show the software version and quit
 
 Please refer to README.md file for more information (e.g., setting adapters).
+Citation: Sun K. Bioinformatics 2020 Jun 1; 36(11):3561-3562. (PMID: 32159761)
 
 Ktrim: extra-fast and accurate adapter- and quality-trimmer.
 ```
@@ -134,6 +136,10 @@ CTGTCTCTTATACACATCT (for both read 1 and read 2)
 BGI adapters:
 Read 1: AAGTCGGAGGCCAAGCGGTC
 Read 2: AAGTCGGATCGTAGCCATGT
+
+CLIP-seq adapters:
+Read 1: TGGAATTCTCGGGTGCCAAGG
+Read 2: GATCGTCGGACTGTAGAACTCTGAAC
 ```
 
 ### Example 1
