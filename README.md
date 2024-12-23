@@ -12,8 +12,8 @@ For detailed information please refer to the license files under `license` direc
 ---
 ## Release of version 1.6
 The author is pleased to release version 1.6 of Ktrim with usability improvement.
-This version added a "-R" option to output reads with adapters only. This could be useful for libraries
-that (e.g., CLIP-seq, whose adapters are also included for built-in support).
+This version added a "-R" option to output reads with adapters only. This could be useful for short libraries
+that all reads should contain adapters (e.g., CLIP-seq, whose adapters are also included as built-in support).
 
 ## Major features of Ktrim
 1. Fast, sensitive, and accurate
@@ -79,7 +79,7 @@ Optional parameters:
 
   -c              Write the trimming results to stdout (default: not set)
                   Note that the interleaved fastq format will be used for paired-end data.
-  -R                Only output reads with adapter (default: not set)
+  -R              Only output reads with adapter (default: not set)
   -t threads      Specify how many threads should be used (default: 6)
                   You can set '-t' to 0 to use all threads (automatically detected)
                   2-8 threads are recommended, as more threads would not benefit the performance
@@ -96,7 +96,7 @@ Optional parameters:
   -s size         Minimum read size to be kept after trimming (default: 36)
 
   -k kit          Specify the sequencing kit to use built-in adapters
-                  Currently supports 'Illumina' (default), 'Nextera', 'Transposase' and 'BGI'
+                  Currently supports 'Illumina' (default), 'Nextera', 'CLIP' and 'BGI'
   -a sequence     Specify the adapter sequence in read 1
   -b sequence     Specify the adapter sequence in read 2
                   If '-a' is set while '-b' is not, I will assume that read 1 and 2 use same adapter
@@ -179,7 +179,7 @@ Please refer to Supplementary Method in the paper for reproducing the results (u
 When referencing, please cite "Sun K: **Ktrim: an extra-fast and accurate adapter- and quality-trimmer
 for sequencing data.** *Bioinformatics* 2020 Jun 1; 36(11):3561-3562."
 [PubMed](https://www.ncbi.nlm.nih.gov/pubmed/32159761 "Ktrim@PubMed")
-[Full Text](https://doi.org/10.1093/bioinformatics/btaa171 "Full text on Bioinformatics journal")
+[Full Text](https://doi.org/10.1093/bioinformatics/btaa171 "Full text on Bioinformatics")
 
 ---
 Please send bug reports to Kun Sun \(sunkun@szbl.ac.cn\).<br />
