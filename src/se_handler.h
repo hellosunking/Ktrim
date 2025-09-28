@@ -167,11 +167,11 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	CSEREAD *workingReads, *loadingReads, *swapReads;
 
 	ktrim_stat kstat;
-	kstat.dropped	   = new unsigned int [ kp.thread ];
-	kstat.real_adapter = new unsigned int [ kp.thread ];
-	kstat.tail_adapter = new unsigned int [ kp.thread ];
-	kstat.dimer	       = new unsigned int [ kp.thread ];
-	kstat.pass	       = new unsigned int [ kp.thread ];
+	kstat.dropped	   = new unsigned long [ kp.thread ];
+	kstat.real_adapter = new unsigned long [ kp.thread ];
+	kstat.tail_adapter = new unsigned long [ kp.thread ];
+	kstat.dimer	       = new unsigned long [ kp.thread ];
+	kstat.pass	       = new unsigned long [ kp.thread ];
 
 	// buffer for storing the modified reads per thread
 	writeBuffer writebuffer;
@@ -288,7 +288,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0, pass_all=0;
+	unsigned long dropped_all=0, real_all=0, tail_all=0, dimer_all=0, pass_all=0;
 	for( unsigned int i=0; i!=kp.thread; ++i ) {
 		dropped_all += kstat.dropped[i];
 		real_all  += kstat.real_adapter[i];
@@ -296,7 +296,7 @@ int process_multi_thread_SE_C( const ktrim_param &kp ) {
 		dimer_all += kstat.dimer[i];
 		pass_all  += kstat.pass[i];
 	}
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+	fprintf( kp.flog, "Total\t%lu\nDropped\t%lu\nAadaptor\t%lu\nTailHit\t%lu\nDimer\t%lu\nPass\t%lu\n",
 				line, dropped_all, real_all, tail_all, dimer_all, pass_all );
 
 	//free memory
@@ -337,11 +337,11 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 	}
 
 	ktrim_stat kstat;
-	kstat.dropped	   = new unsigned int [ 1 ];
-	kstat.real_adapter = new unsigned int [ 1 ];
-	kstat.tail_adapter = new unsigned int [ 1 ];
-	kstat.dimer        = new unsigned int [ 1 ];
-	kstat.pass         = new unsigned int [ 1 ];
+	kstat.dropped	   = new unsigned long [ 1 ];
+	kstat.real_adapter = new unsigned long [ 1 ];
+	kstat.tail_adapter = new unsigned long [ 1 ];
+	kstat.dimer        = new unsigned long [ 1 ];
+	kstat.pass         = new unsigned long [ 1 ];
 	kstat.dropped[0] = 0;
 	kstat.real_adapter[0] = 0;
 	kstat.tail_adapter[0] = 0;
@@ -417,7 +417,7 @@ int process_single_thread_SE_C( const ktrim_param &kp ) {
 	}
 
 	// write trim.log
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+	fprintf( kp.flog, "Total\t%lu\nDropped\t%lu\nAadaptor\t%lu\nTailHit\t%lu\nDimer\t%lu\nPass\t%lu\n",
 				line, kstat.dropped[0], kstat.real_adapter[0], kstat.tail_adapter[0], kstat.dimer[0], kstat.pass[0] );
 
 	//free memory

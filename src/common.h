@@ -29,8 +29,9 @@
 #include <chrono>
 using namespace std;
 
-const char * VERSION = "1.6.0 (Oct 2024)";
+const char * VERSION = "1.6.1 (Aug 2025)";
 
+// 1.6.1, change the statistic variables from "int" to "long"
 // 1.6.0, add '-w' option to output reads with adapters only;
 //        add built-in adapters for CLIP-seq;
 //        fix a bug in single-thread file-writing
@@ -54,7 +55,7 @@ const unsigned int DIMER_INSERT   = 1;
 // time interval for querying for writing
 static int write_thread;
 //const static chrono::milliseconds waiting_time_for_writing(1);
-const static chrono::microseconds waiting_time_for_writing(100);
+const static chrono::microseconds waiting_time_for_writing(10);
 
 typedef struct {
 	char *id;
@@ -76,11 +77,11 @@ typedef struct {
 } CPEREAD;
 
 typedef struct {
-	unsigned int *dropped;
-	unsigned int *real_adapter;
-	unsigned int *tail_adapter;
-	unsigned int *dimer;
-	unsigned int *pass;
+	unsigned long *dropped;
+	unsigned long *real_adapter;
+	unsigned long *tail_adapter;
+	unsigned long *dimer;
+	unsigned long *pass;
 } ktrim_stat;
 
 typedef struct {

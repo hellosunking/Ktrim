@@ -1,6 +1,6 @@
 /**
- * Author: Kun Sun (sunkun@szbl.ac.cn)
- * Date: May 2023
+ * Author     : Kun Sun (sunkun@szbl.ac.cn)
+ * Last update: Aug 2025
  * This program is part of the Ktrim package
 **/
 
@@ -36,16 +36,16 @@ bool inline is_revcomp( const char a, const char b ) {
 }
 
 void init_kstat_wrbuffer( ktrim_stat &kstat, writeBuffer &writebuffer, unsigned int nthread, bool write2stdout ) {
-	kstat.dropped	   = new unsigned int [ nthread ];
-	kstat.real_adapter = new unsigned int [ nthread ];
-	kstat.tail_adapter = new unsigned int [ nthread ];
-	kstat.dimer        = new unsigned int [ nthread ];
-	kstat.pass         = new unsigned int [ nthread ];
+	kstat.dropped	   = new unsigned long [ nthread ];
+	kstat.real_adapter = new unsigned long [ nthread ];
+	kstat.tail_adapter = new unsigned long [ nthread ];
+	kstat.dimer        = new unsigned long [ nthread ];
+	kstat.pass         = new unsigned long [ nthread ];
 
 	// buffer for storing the modified reads per thread
 	writebuffer.buffer1  = new char * [ nthread ];
 	writebuffer.buffer2  = new char * [ nthread ];
-	writebuffer.b1stored = new unsigned int	[ nthread ];
+	writebuffer.b1stored = new unsigned int [ nthread ];
 	writebuffer.b2stored = new unsigned int [ nthread ];
 
 	for(unsigned int i=0; i!=nthread; ++i) {
@@ -188,12 +188,12 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 			register const char *q = wkr->seq2;
 			//Note: 1 mismatch is allowed in tail-checking
 			register unsigned int mismatches = 0;
-			if( p[i]   != kp.adapter_r1[0] ) mismatches ++;
-			if( p[i+1] != kp.adapter_r1[1] ) mismatches ++;
-			if( q[i]   != kp.adapter_r2[0] ) mismatches ++;
-			if( q[i+1] != kp.adapter_r2[1] ) mismatches ++;
-			if( ! is_revcomp(p[5], q[i-6]) ) mismatches ++;
-			if( ! is_revcomp(q[5], p[i-6]) ) mismatches ++;
+			if( p[i]   != kp.adapter_r1[0] ) ++ mismatches;
+			if( p[i+1] != kp.adapter_r1[1] ) ++ mismatches;
+			if( q[i]   != kp.adapter_r2[0] ) ++ mismatches;
+			if( q[i+1] != kp.adapter_r2[1] ) ++ mismatches;
+			if( ! is_revcomp(p[5], q[i-6]) ) ++ mismatches;
+			if( ! is_revcomp(q[5], p[i-6]) ) ++ mismatches;
 			if( mismatches <= 1 ) {	// tail is good
 				++ kstat->tail_adapter[tn];
 				if( i < kp.min_length ) {
@@ -204,12 +204,12 @@ void workingThread_PE_C( unsigned int tn, unsigned int start, unsigned int end, 
 			} else {	// tail 2 is not good, check tail 1
 				++ i;
 				mismatches = 0;
-				if( p[i] != kp.adapter_r1[0] ) mismatches ++;
-				if( q[i] != kp.adapter_r2[0] ) mismatches ++;
-				if( ! is_revcomp(p[5], q[i-6]) ) mismatches ++;
-				if( ! is_revcomp(q[5], p[i-6]) ) mismatches ++;
-				if( ! is_revcomp(p[6], q[i-7]) ) mismatches ++;
-				if( ! is_revcomp(q[6], p[i-7]) ) mismatches ++;
+				if( p[i] != kp.adapter_r1[0]   ) ++ mismatches;
+				if( q[i] != kp.adapter_r2[0]   ) ++ mismatches;
+				if( ! is_revcomp(p[5], q[i-6]) ) ++ mismatches;
+				if( ! is_revcomp(q[5], p[i-6]) ) ++ mismatches;
+				if( ! is_revcomp(p[6], q[i-7]) ) ++ mismatches;
+				if( ! is_revcomp(q[6], p[i-7]) ) ++ mismatches;
 
 				if( mismatches <= 1 ) {
 					++ kstat->tail_adapter[tn];
@@ -463,7 +463,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	int dropped_all=0, real_all=0, tail_all=0, dimer_all=0, pass_all=0;
+	unsigned long dropped_all=0, real_all=0, tail_all=0, dimer_all=0, pass_all=0;
 	for( unsigned int i=0; i!=kp.thread; ++i ) {
 		dropped_all += kstat.dropped[i];
 		real_all  += kstat.real_adapter[i];
@@ -471,7 +471,7 @@ int process_multi_thread_PE_C( const ktrim_param &kp ) {
 		dimer_all += kstat.dimer[i];
 		pass_all  += kstat.pass[i];
 	}
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+	fprintf( kp.flog, "Total\t%lu\nDropped\t%lu\nAadaptor\t%lu\nTailHit\t%lu\nDimer\t%lu\nPass\t%lu\n",
 				line, dropped_all, real_all, tail_all, dimer_all, pass_all );
 
 	//free memory
@@ -523,11 +523,11 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 	}
 
 	ktrim_stat kstat;
-	kstat.dropped	   = new unsigned int [ 1 ];
-	kstat.real_adapter = new unsigned int [ 1 ];
-	kstat.tail_adapter = new unsigned int [ 1 ];
-	kstat.dimer        = new unsigned int [ 1 ];
-	kstat.pass         = new unsigned int [ 1 ];
+	kstat.dropped	   = new unsigned long [ 1 ];
+	kstat.real_adapter = new unsigned long [ 1 ];
+	kstat.tail_adapter = new unsigned long [ 1 ];
+	kstat.dimer        = new unsigned long [ 1 ];
+	kstat.pass         = new unsigned long [ 1 ];
 	kstat.dropped[0] = 0;
 	kstat.real_adapter[0] = 0;
 	kstat.tail_adapter[0] = 0;
@@ -539,15 +539,15 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 	writebuffer.buffer1  = new char * [ 1 ];
 	if( kp.write2stdout ) {
 		writebuffer.buffer1[0] = new char[ BUFFER_SIZE_PER_BATCH_READ_ST << 1 ];
-		writebuffer.b1stored = new unsigned int	[ 1 ];
+		writebuffer.b1stored = new unsigned int [ 1 ];
 	} else {
 		writebuffer.buffer1[0] = new char[ BUFFER_SIZE_PER_BATCH_READ_ST ];
 
 		writebuffer.buffer2  = new char * [ 1 ];
 		writebuffer.buffer2[0] = new char[ BUFFER_SIZE_PER_BATCH_READ_ST ];
 	}
-	writebuffer.b1stored = new unsigned int	[ 1 ];
-	writebuffer.b2stored = new unsigned int	[ 1 ];
+	writebuffer.b1stored = new unsigned int [ 1 ];
+	writebuffer.b2stored = new unsigned int [ 1 ];
 
 // deal with multiple input files
 	if( kp.R1s.size() != kp.R2s.size() ) {
@@ -621,7 +621,7 @@ int process_single_thread_PE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+	fprintf( kp.flog, "Total\t%lu\nDropped\t%lu\nAadaptor\t%lu\nTailHit\t%lu\nDimer\t%lu\nPass\t%lu\n",
 				line, kstat.dropped[0], kstat.real_adapter[0], kstat.tail_adapter[0], kstat.dimer[0], kstat.pass[0] );
 
 	delete writebuffer.buffer1[0];
@@ -775,7 +775,7 @@ int process_two_thread_PE_C( const ktrim_param &kp ) {
 	//cerr << "\rDone: " << line << " lines processed.\n";
 
 	// write trim.log
-	fprintf( kp.flog, "Total\t%u\nDropped\t%u\nAadaptor\t%u\nTailHit\t%u\nDimer\t%u\nPass\t%u\n",
+	fprintf( kp.flog, "Total\t%lu\nDropped\t%lu\nAadaptor\t%lu\nTailHit\t%lu\nDimer\t%lu\nPass\t%lu\n",
 				line, kstat.dropped[0]+kstat.dropped[1], kstat.real_adapter[0]+kstat.real_adapter[1],
 				kstat.tail_adapter[0]+kstat.tail_adapter[1], kstat.dimer[0]+kstat.dimer[1], kstat.pass[0]+kstat.pass[1] );
 
